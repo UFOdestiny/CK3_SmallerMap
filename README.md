@@ -10,4 +10,4 @@ This mod is designed to reduce the size of world map in Crusader King 3 to impro
 6. (optional) Removing affected bookmarks.
 
 ## Acknowledgement
-This work is inspired by [Smaller World Map](https://steamcommunity.com/sharedfiles/filedetails/?id=2882223898) of [Starmender](url=https://steamcommunity.com/id/starmender), from whom I learnt the process of modding map.
+This work is inspired by [Smaller World Map](https://steamcommunity.com/sharedfiles/filedetails/?id=2882223898) of [Starmender](https://steamcommunity.com/id/starmender), from whom I learnt the process of modding map.
