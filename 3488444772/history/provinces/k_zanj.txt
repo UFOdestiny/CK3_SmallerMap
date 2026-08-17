@@ -1,0 +1,37 @@
+﻿#k_zanj
+##d_pate ###################################
+
+###c_pate
+
+###c_ewaso_ngiro
+
+###c_lamu
+
+##d_mombasa ###################################
+
+###c_mombasa
+
+###c_malindi
+
+##d_bonde_la_ufa ###################################
+
+###c_kirinyaga
+
+###c_kilimanjaro
+
+###c_taveta
+
+###c_mto_galana
+
+###c_mto_tana
+
+##d_zanzibar ###################################
+
+###c_pemba
+
+###c_tanga
+
+
+###c_zanzibar
+
+###c_mrima

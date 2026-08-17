@@ -1,0 +1,94 @@
+﻿# 1118 - Manyapura
+
+# 1121 - Uchangidurga
+
+# 1140 - Banavasi
+
+# 1143 - Kalyani
+
+# 1158 - Bidar
+
+# 1196 - Srirangapatna
+
+# 1197 - Dwarasamudra
+
+# 1198 - Vatapi
+
+# 1202 - Kudalasangama
+
+# 1203 - Idatarainadu
+
+# 1210 - Manyakheta
+
+# 1216 - Talakad
+
+# 1217 - Nandagiri
+
+# 1218 - Alampur
+
+# 1265 - Sagar
+
+# 7847 - Mercara
+
+# 7848 - Moyar
+
+# 7850 - Masur
+
+# 7851 - Shringeri
+
+# 7852 - Arka
+
+# 7853 - Kudala
+
+# 7854 - Kandanavolu
+
+# 7855 - Adoni
+
+# 7856 - Adavani
+
+# 7857 - Gutti
+
+# 7858 - Vijayanagara
+
+# 7859 - Kampili
+
+# 7860 - Nidugallu
+
+# 7861 - Basavapattana
+
+# 7862 - Hemavati
+
+# 7863 - Honnavalli
+
+# 7864 - Parivi
+
+# 7865 - Belapura
+
+# 7866 - Shravana_Belgola
+
+# 7867 - Sosavur
+
+# 7870 - Belgaum
+
+# 7871 - Keladi
+
+# 7872 - Hubli
+
+# 7873 - Hangal
+
+# 7874 - Koppam
+
+# 7875 - Vankapura
+
+# 7876 - Anegandi
+
+# 7877 - Mushangi
+
+# 7878 - Raichur
+
+# 7885 - Vijayapura_bis
+
+# 7887 - Kembavi
+
+# 7901 - Gulbarga
+

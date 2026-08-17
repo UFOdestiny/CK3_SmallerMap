@@ -1,0 +1,112 @@
+﻿# 927 - Bhubaneswar
+
+# 928 - Konarak
+
+# 929 - Dhauli
+
+# 930 - Sakshigopal
+
+# 931 - Athgarh
+
+# 932 - Ratnagiri
+
+# 1128 - Vizagipatam
+
+# 1129 - Kataka
+
+# 1155 - Sripuri
+
+# 1156 - Kodalaka
+
+# 1160 - Rayapura
+
+# 1224 - Mandasa
+
+# 1225 - Puri
+
+# 1226 - Nandapur
+
+# 1227 - Cakrakuta
+
+# 1228 - Swetakapura
+
+# 1229 - Khinjali
+
+# 1230 - Suvarnapura
+
+# 1231 - Viraja
+
+# 1247 - Khijjinga
+
+# 1249 - Sambalpur
+
+# 1252 - Barasuru
+
+# 1270 - Kiranapura
+
+# 3980 - Bhadrak
+
+# 3981 - Baleshvara
+
+# 3982 - Raibania
+
+# 3983 - Asanapat
+
+# 3984 - Bahalda
+
+# 3985 - Ghatagaon
+
+# 3986 - Malayagiri
+
+# 3987 - Bajrakot
+
+# 3988 - Deogarh
+
+# 3989 - Nilamadhav
+
+# 3990 - Nayagarh
+
+# 3991 - Shivapura
+
+# 3992 - Camparanya
+
+# 3993 - Rajiva_Lochana
+
+# 3994 - Yajatinagara
+
+# 3995 - Vinitapura
+
+# 3996 - Ranipur
+
+# 3997 - Rajgangpur
+
+# 3998 - Bikramkhol
+
+# 3999 - Umerkote
+
+# 7913 - Bhadracala
+
+# 7914 - Malkangiri
+
+# 7915 - Chutur
+
+# 7932 - Lanjika
+
+# 7933 - Mungeli
+
+# 7934 - Nandgram
+
+# 9648 - Kalinganagara
+
+# 9649 - Srikakulam
+
+# 9650 - Ganjam
+
+# 9651 - Gopalpur
+
+# 9652 - Rayagada
+
+# 9653 - Asurgarh
+
+# 9659 - Kanker
+

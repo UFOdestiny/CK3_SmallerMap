@@ -1,0 +1,36 @@
+﻿#k_sahara
+##d_tadmekka ###################################
+###c_tadmekka
+
+###c_tessalit
+
+##d_ghat ###################################
+###c_ghat
+
+###c_djanet
+
+##d_air ###################################
+###c_takkeda
+
+###c_air
+
+##d_kawar ###################################
+###c_bilma
+
+###c_dirku
+
+###c_djado
+
+##d_tibesti ###################################
+###c_ain_galakka
+
+###c_bodele
+
+###c_tibesti
+
+##d_fezzan ###################################
+###c_murzuk
+
+###c_zawila
+
+###c_germa

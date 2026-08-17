@@ -1,0 +1,128 @@
+﻿# 920 - Gawilgarh
+
+# 1124 - Honnore
+
+# 1125 - Thana
+
+# 1142 - Pratishthana
+
+# 1145 - Devagiri
+
+# 1146 - Naldurg
+
+# 1159 - Ramagiri
+
+# 1206 - Taradavadi
+
+# 1212 - Lattalura
+
+# 1213 - Kondana
+
+# 1220 - Goa
+
+# 1254 - Vairagara
+
+# 1258 - Nanded
+
+# 1259 - Vatsagulma
+
+# 1260 - Nasikya
+
+# 1261 - Parnakheta
+
+# 1269 - Canda
+
+# 1285 - Acalapura
+
+# 1286 - Kherla
+
+# 1416 - Kolhapur
+
+# 7788 - Suraparaka
+
+# 7789 - Ambaranatha
+
+# 7790 - Chaul
+
+# 7791 - Dabhol
+
+# 7792 - Chiplun
+
+# 7793 - Kollapura
+
+# 7794 - Panaji
+
+# 7795 - Hinawr
+
+# 7868 - Kurundaka
+
+# 7869 - Pranala
+
+# 7879 - Karahataka
+
+# 7880 - Bhimashankara
+
+# 7881 - Pundarika
+
+# 7882 - Karhada
+
+# 7883 - Miraj
+
+# 7884 - Hastikundi
+
+# 7888 - Jirnanagara
+
+# 7889 - Patkapur
+
+# 7890 - Sholapur
+
+# 7891 - Purnagiri
+
+# 7892 - Ausa
+
+# 7893 - Ahmadnagar
+
+# 7894 - Bhid
+
+# 7895 - Darur
+
+# 7896 - Qandhar
+
+# 7897 - Seunapura
+
+# 7898 - Ankai
+
+# 7899 - Elapura
+
+# 7900 - Jhodga
+
+# 7917 - Jalna
+
+# 7918 - Sindkhed
+
+# 7919 - Bhainsa
+
+# 7920 - Nirmal
+
+# 7921 - Mahur
+
+# 7922 - Kerimeri
+
+# 7923 - Mancherial
+
+# 7924 - Mekhar
+
+# 7925 - Amraoti
+
+# 7926 - Kalam
+
+# 7927 - Wun
+
+# 7929 - Nagpur
+
+# 7930 - Bhandara
+
+# 7931 - Seoni
+
+# 7935 - Gondia
+

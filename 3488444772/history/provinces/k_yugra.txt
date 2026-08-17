@@ -1,0 +1,32 @@
+﻿#k_yugra
+#Check this Wiki for the lowdown : https://en.wikipedia.org/wiki/Yugra
+
+##d_ostyaki ###################################
+###c_tyumen
+
+###c_laia
+
+###c_tabary
+
+###c_neramkary
+
+##d_konda ###################################
+#Konda is a river and a province of Yugra
+###c_tselym_dalyn
+
+###c_kharam-vosh
+
+###c_kartauzh
+
+##d_pelym ###################################
+###c_pelym
+
+###c_koshuki
+
+##d_kazym ###################################
+###c_kazym
+#Kazym is a river and a province of Yugra
+
+###c_sosva
+
+###c_koda

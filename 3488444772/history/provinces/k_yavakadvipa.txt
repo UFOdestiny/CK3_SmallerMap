@@ -1,0 +1,23 @@
+﻿#k_yavakadvipa
+##d_JAV_mataram ###################################
+###c_JAV_mataram
+
+###c_JAV_kalingga
+
+###c_JAV_janggala
+
+###c_JAV_lumajang
+
+##d_JAV_taruma ###################################
+###c_JAV_sunda
+
+###c_JAV_galuh
+
+###c_JAV_cimanuk
+
+##d_IDO_bali ###################################
+###c_IDO_bali
+
+###c_JAV_madura
+
+###c_IDO_lombok_and_sumbawa

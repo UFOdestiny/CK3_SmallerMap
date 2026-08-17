@@ -1,0 +1,47 @@
+﻿#k_borneo
+##d_BOR_tanjungpura ###################################
+###c_BOR_sambas
+
+###c_BOR_sukadana
+
+###c_BOR_sintang
+
+###c_BOR_waringin
+
+##d_BOR_barune ###################################
+###c_BOR_brunei
+
+###c_BOR_kudat
+
+###c_BOR_lahad_datu
+
+###c_BOR_menjelutung
+
+###c_BOR_nabawan
+
+##d_BOR_santubong ###################################
+###c_BOR_santubong
+
+###c_BOR_iban
+
+###c_BOR_rajang
+
+###c_BOR_tanah_taman
+
+##d_BOR_nan_sarunai ###################################
+###c_BOR_banjar
+
+###c_BOR_tabalung
+
+###c_BOR_taiao
+
+###c_BOR_sampit
+
+##d_BOR_kutai ###################################
+###c_BOR_martapura
+
+###c_BOR_kutai_utara
+
+###c_BOR_berau
+
+###c_BOR_kutai_jauh

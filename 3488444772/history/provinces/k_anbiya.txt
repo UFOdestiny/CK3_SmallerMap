@@ -1,0 +1,24 @@
+﻿#k_anbiya
+##d_zammour ###################################
+###c_zammour
+
+###c_tindouf
+
+###c_tiris
+
+##d_adrar ###################################
+###c_wadan
+
+###c_azukki
+
+###c_amatlus
+
+##d_touat ###################################
+###c_touat
+
+###c_tamentit
+
+##d_taghaza ###################################
+###c_taghaza
+
+###c_saoura

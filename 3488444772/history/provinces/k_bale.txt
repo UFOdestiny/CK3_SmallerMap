@@ -1,0 +1,20 @@
+﻿#k_bale
+##d_shabelle ###################################
+###c_gode
+
+###c_ganale
+
+###c_gidaya
+
+##d_bali ###################################
+###c_sidamo
+###c_bali	#aka Bale
+
+##d_samalo ###################################
+###c_marsabit
+
+###c_fudalhi
+
+###c_el_waak
+
+###c_lag_dera

@@ -1,0 +1,69 @@
+﻿#k_ob
+##d_salair ###################################
+###c_ob
+
+###c_biia
+
+###c_torema
+
+###c_sorok
+
+###c_kyin
+
+##d_aley ###################################
+###c_aley
+
+###c_kondoma
+
+###c_korgon
+
+##d_altaishan ###################################
+###c_terektai
+
+###c_tavan_bogd
+
+##d_ala_tau ###################################
+###c_tomsk
+
+###c_kiia
+
+###c_taskyl
+
+###c_kojuk
+
+###c_chulym
+
+###c_narim
+
+###c_sochur
+
+###c_yenisei
+
+##d_vasyugan_mire ###################################
+###c_vasyugan
+
+###umiai
+
+###c_tartas_SIB
+
+###c_chich
+
+##d_baraba_steppe ###################################
+###c_kolyvan
+
+###c_sartlan
+
+###c_ubins
+
+###c_igaran
+
+###c_konda_ob
+
+##d_kulyndy_steppe ###################################
+###c_kulunda
+
+###c_barnaul
+
+###c_kachu
+
+###c_kuchuk

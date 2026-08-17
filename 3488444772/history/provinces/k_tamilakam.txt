@@ -1,0 +1,114 @@
+﻿# 1112 - Madurai
+
+# 1114 - Mahoyadapuram
+
+# 1115 - Cholamandalam
+
+# 1116 - Tenkasi
+
+# 1117 - Qalqut
+
+# 1119 - Kanchipuram
+
+# 1120 - Tagadur
+
+# 1199 - Penugonda
+
+# 1200 - Kanara
+
+# 1201 - Kongu
+
+# 1204 - Nellore
+
+# 1214 - Tirunelveli
+
+# 1219 - Potapi
+
+###c_maldives
+
+# 1413 - Venadu
+
+# 7797 - Mangalur
+
+# 7798 - Kannanur
+
+# 7799 - Malappuram
+
+# 7800 - Palakkad
+
+# 7801 - Kunjakari
+
+# 7802 - Kottayam
+
+# 7803 - Kollam
+
+# 7804 - Kovai
+
+# 7805 - Tiruppur
+
+# 7806 - Dindigul
+
+# 7807 - Uraiyur
+
+# 7808 - Sivaganga
+
+# 7809 - Rameshvaram
+
+# 7810 - Virudhukkalvetti
+
+# 7811 - Sivakasi
+
+# 7812 - Korkai
+
+# 7813 - Kayal
+
+# 7814 - Kottar
+
+# 7815 - Togarakunta
+
+# 7816 - Anantapur
+
+# 7817 - Puspagiri
+
+# 7818 - Vallurapura
+
+# 7819 - Mangalavada
+
+# 7820 - Melpadi
+
+# 7821 - Kalahasti
+
+# 7822 - Nandi
+
+# 7823 - Nangali
+
+# 7824 - Muluvagil
+
+# 7825 - Padaividu
+
+# 7826 - Takkaloma
+
+# 7827 - Mamallapuram
+
+# 7828 - Kuvalala
+
+# 7829 - Kudalasangama_bis
+
+# 7830 - Tiruvannamalai
+
+# 7831 - Uttaramerur
+
+# 7832 - Jinji
+
+# 7833 - Kelrayan
+
+# 7834 - Srirangam
+
+# 7835 - Tirukoilur
+
+# 7836 - Kannanur_2
+
+# 7837 - Gangaikondacolapuram
+
+# 7838 - Nagapattinam
+

@@ -1,0 +1,33 @@
+﻿#k_sulawesi
+##d_SuMa_luwu ###################################
+###c_SuMa_luwu
+
+###c_SuMa_siang
+
+###c_SuMa_ajatappareng
+
+###c_SuMa_sampaga
+
+##d_SuMa_konawe ###################################
+###c_SuMa_konawe
+
+###c_SuMa_butun
+
+###c_SuMa_moronene
+
+###c_SuMa_tamboeko
+
+##d_SuMa_minahasa ###################################
+###c_SuMa_gorontalo
+
+###c_SuMa_wenang
+
+###c_SuMa_banawa
+
+##d_SuMa_tompotika ###################################
+###c_SuMa_banggai
+
+###c_SuMa_mori
+
+###c_SuMa_banggai_utara
+

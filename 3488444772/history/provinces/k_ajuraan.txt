@@ -1,0 +1,29 @@
+﻿#k_ajuraan
+##d_hafun ###################################
+###c_ras_hafun
+
+###c_barbacadle
+
+###c_nugaal
+
+###c_mudug
+
+##d_mogadishu ###################################
+###c_mogadishu
+
+###c_hobyo
+
+###c_mareeg
+
+###c_hiraab
+
+##d_west_ajuraan ###################################
+###c_jubba
+
+###c_baydhabo
+
+###c_qalaafe
+
+###c_jilib
+
+###c_luuq

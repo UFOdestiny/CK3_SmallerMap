@@ -1,0 +1,43 @@
+﻿# Many of the duchies, counties & baronies are named after geographical features and overall regions
+# The vast majority of cities are fairly modern, at the very least from Renaissance era
+
+#k_khakassia
+##d_khakass_hollow ###################################
+#AKA Minusinsk Hollow
+###c_abakan
+
+###c_julym
+
+###c_jerjul
+
+###c_kizir
+
+###c_anja
+
+###c_kyzylkul
+
+##d_shoria ###################################
+#Based on the local Shors people
+###c_kuzbas
+
+###c_shor
+
+###c_uul_chors
+
+##d_kargassia ###################################
+#Duchy based on the language/ethnic group present in the area, known as Karagas
+###c_burugu_aallar
+
+###c_chagdy_aallar
+
+###c_songuu_aallar
+
+##d_eastern_sayan ###################################
+#Sayan = Sayan mountains
+###c_karauda
+
+###c_shityy
+
+###c_kropot
+
+###c_monkh_saridag

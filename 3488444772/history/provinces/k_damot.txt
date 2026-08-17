@@ -1,0 +1,24 @@
+﻿#k_damot
+##d_damot ###################################
+###c_damot
+
+###c_berta
+
+###c_wellega
+
+###c_innarya
+
+##d_kaffa ###################################
+###c_kaffa
+###c_welamo
+
+###c_gamo
+
+##d_sharka ###################################
+###c_sharka
+
+###c_burji
+
+###c_dara
+
+###c_hadya

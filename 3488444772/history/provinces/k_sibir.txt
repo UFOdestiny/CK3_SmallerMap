@@ -1,0 +1,29 @@
+﻿#k_sibir
+##d_sibir ###################################
+###c_sibir
+
+###c_tobol
+
+###c_belogorje
+
+###c_bardak
+
+##d_ishim ###################################
+###c_ishim
+
+###c_dolgujar
+
+##d_tara ###################################
+###c_tara
+
+###c_kazanskoye
+
+###c_petropavolsk
+
+##d_lanikaz ###################################
+#The Lanikaz were a turkic tribe believed to have lived in this approximative area
+###c_omsk
+
+###c_kainsk
+
+###c_pavlodar

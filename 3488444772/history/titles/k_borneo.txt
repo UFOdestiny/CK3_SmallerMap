@@ -1,0 +1,33 @@
+﻿# Any government defined as wanua_government here will be switched back to tribal_government if the TGP DLC is not active. 
+# This is done by effect in the game_start.txt on_action file.
+
+
+#d_BOR_tanjungpura
+
+
+
+
+
+#d_BOR_barune
+
+
+
+
+
+#d_BOR_santubong
+
+
+
+
+#d_BOR_nan_sarunai
+
+
+
+
+
+#d_BOR_kutai
+
+
+
+
+

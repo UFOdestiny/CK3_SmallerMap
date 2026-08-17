@@ -1,0 +1,38 @@
+﻿#k_maluku
+##d_SuMa_halmahera ###################################
+###c_SuMa_ternate
+
+###c_SuMa_tidore
+
+###c_SuMa_bacan
+
+##d_SuMa_maluku ###################################
+###c_SuMa_seram
+
+###c_SuMa_raja_ampat
+
+###c_SuMa_buru-sula
+
+##d_papua ###################################
+###c_kepala_burung
+
+###c_sran
+
+###c_papua_selatan
+
+###c_aru
+
+
+##d_IDO_lesser_sunda ###################################
+###c_IDO_nusa_nipa
+
+###c_IDO_galiyao
+
+##d_IDO_timor ###################################
+###c_IDO_sonba_i
+
+###c_IDO_wehale
+
+###c_IDO_humba
+
+###c_IDO_barat_daya

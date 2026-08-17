@@ -1,0 +1,40 @@
+﻿# Many of the duchies, counties & baronies are named after geographical features and overall regions
+# The vast majority of cities are fairly modern, at the very least from Renaissance era
+
+# Most of the kingdom is set as shamanic instead of tengri
+# In reality, it's difficult to say because of the lack of records, and because there very likely was a lot of shamano-tengric syncretism
+
+#k_angara
+##d_yenisei_kan ###################################
+###c_krasnoyarsk	called Kyzyl Char in game
+
+###c_mana
+
+###c_shishina
+
+###c_kansk	AKA "Kankhot" in game
+
+###c_tagul
+
+##d_chuna_valley ###################################
+###c_chuna	AKA "Üd Valley"
+
+###c_bratsk
+
+###c_tulun
+
+##d_lena ###################################
+###c_lena
+
+###c_ilga
+
+###c_gatsuurgazar
+
+##d_angara ###################################
+###c_kitoi
+
+###c_kymyl_tey
+
+###c_okangara
+
+###c_kada

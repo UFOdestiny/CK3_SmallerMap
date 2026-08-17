@@ -1,0 +1,21 @@
+﻿# Any government defined as wanua_government here will be switched back to tribal_government if the TGP DLC is not active. 
+# This is done by effect in the game_start.txt on_action file.
+
+#k_yavakadvipa
+
+#d_JAV_mataram
+
+
+
+
+
+#d_JAV_taruma
+
+
+
+
+
+#d_IDO_bali
+
+
+

@@ -1,0 +1,24 @@
+﻿# Any government defined as wanua_government here will be switched back to tribal_government if the TGP DLC is not active. 
+# This is done by effect in the game_start.txt on_action file.
+
+
+#d_SuMa_luwu
+
+
+
+
+
+
+#d_SuMa_konawe
+
+
+
+
+
+#d_SuMa_minahasa
+
+
+
+#d_SuMa_tompotika
+
+

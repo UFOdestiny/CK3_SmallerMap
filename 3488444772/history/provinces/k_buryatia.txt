@@ -1,0 +1,45 @@
+﻿# Many of the duchies, counties & baronies are named after geographical features and overall regions
+# The vast majority of cities are fairly modern, at the very least from Renaissance era
+
+# Northern & western sides of the Baïkal are set as shamanic instead of tengri
+# In reality, it's difficult to say because of the lack of records, and because there very likely was a lot of shamano-tengric syncretism
+# Olkhon and very northern lands are set as shamanic, while the Uda Valley and close-by Dauria are set as Tengri
+
+#k_buryatia
+##d_uda_valley ###################################
+###c_ulan_ude
+
+###c_chikoy
+
+##d_dauria ###################################
+#Dauria is an alternative name for Transbaïkal
+###c_bargajan
+
+###c_muya
+
+###c_kotokel
+
+###c_yera
+
+##d_bargujin_tukum ###################################
+#Bargujin Tukum means "End of the world", the northern "edge" of the world according to local people at the time
+###c_kotera
+
+###c_vitim
+
+###c_karabaigal
+
+###c_chuya
+
+##d_baigaluuls ###################################
+###c_baigaluuls
+
+###c_uulynkhol
+
+##d_tsagaanbaigal ###################################
+#Fictional name, can be translated to "White Baikal" to mean "Western Baikal"
+###c_olkhon
+
+###c_irkutsk	#called Erhüü ingame
+
+###c_ryty
