@@ -1,0 +1,27 @@
+﻿#k_hujung_medini
+##d_MAL_langkasuka ###################################
+###c_MAL_patani
+
+###c_MAL_kelantan
+
+###c_MAL_kedah
+
+###c_THAI_tambralinga
+
+###c_THAI_takua_pa
+
+
+##d_MAL_pahang ###################################
+###c_MAL_pahang
+
+###c_MAL_gelanggi
+
+###c_MAL_johor
+
+###c_riau
+
+###c_MAL_gangganegara
+
+###c_MAL_semantan
+
+# 9662 - Andaman

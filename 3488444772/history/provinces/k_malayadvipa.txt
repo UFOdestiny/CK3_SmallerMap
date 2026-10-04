@@ -1,0 +1,53 @@
+﻿#k_malayadvipa
+##d_SUM_palembang ###################################
+###c_SUM_palembang
+
+###c_SUM_lampung
+
+###c_SUM_bangka-belitung
+
+###c_SUM_pasemah
+
+###c_SUM_east_sumatra
+
+##d_SUM_jambi ###################################
+###c_SUM_jambi
+
+###c_SUM_dharmasraya
+
+###c_SUM_indragiri
+
+###c_SUM_lingga
+
+###c_SUM_karang_brahi
+
+##d_SUM_riau ###################################
+###c_SUM_muara_takus
+
+###c_SUM_kampar
+
+###c_SUM_rokan
+
+###c_SUM_pekanbaru
+
+###c_SUM_meranti
+
+##d_SUM_aceh ###################################
+###c_SUM_lambri
+
+###c_SUM_barus
+
+###c_SUM_panai
+
+###c_SUM_perlak
+
+##d_SUM_minangkabau ###################################
+###c_SUM_minangkabau
+
+#c_mentawai
+
+#c_nias
+
+###c_SUM_bengkulu
+
+###c_SUM_riak_nan_berbedur

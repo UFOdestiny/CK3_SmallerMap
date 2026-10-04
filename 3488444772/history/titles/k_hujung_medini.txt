@@ -1,40 +1,17 @@
 ﻿# Any government defined as wanua_government here will be switched back to tribal_government if the TGP DLC is not active. 
 # This is done by effect in the game_start.txt on_action file.
 
-#k_lusung
-
-#d_PHI_tondo
+#d_MAL_langkasuka
 
 
 
 
 
-#d_PHI_sandao
 
-
-#d_PHI_ilocana
-
+#d_MAL_pahang
 
 
 
-#d_PHI_cagayan
-
-
-#k_kabisay-an
-
-#d_PHI_visayas
-
-
-
-
-
-#d_PHI_maguindanao
-
-
-
-
-
-#d_PHI_butuan
 
 
 

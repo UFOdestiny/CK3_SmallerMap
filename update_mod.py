@@ -14,6 +14,7 @@ import json
 from pathlib import Path
 import re
 import sys
+from typing import Iterable
 
 import numpy as np
 from PIL import Image
@@ -46,6 +47,11 @@ title_delete = [
     "e_kanem_bornu",
     "e_abyssinia",
     "e_siberia",
+    "e_srivijaya",
+    "e_nusantara",
+    "e_brunei",
+    "e_majapahit",
+    "e_ruucuu",
     "k_permia",
     "k_sahara",
     "k_angara",
@@ -53,22 +59,22 @@ title_delete = [
     "k_bjarmaland",
     "k_buryatia",
     "k_khakassia",
-    "k_maluku",
-    "k_sulawesi",
-    "k_yavakadvipa",
-    "k_tanjungnagara",
-    "k_kabisay-an",
     "k_orissa",
+    "d_bahitawi",
+    "d_laamp_shunkan",
+    "d_laamp_sirafi_mariners",
+    "d_laamp_leaf_hermits",
+    "d_laamp_lembongs_band",
 ]
+
+# Preserve an entire title subtree while deleting its former parent empire.
+title_rehome = {"k_liuqiu": "e_jingyang"}
 
 replace_title = {
     "capital = c_semien": "capital = c_aswan",
     "capital = c_tigre": "capital = c_aswan",
     "capital = c_jenne": "capital = c_tinmallal",
     "capital = c_kongu": "capital = c_bost",
-    "capital = c_JAV_janggala": "capital = c_SUM_palembang",
-    "capital = c_JAV_mataram": "capital = c_SUM_palembang",
-    "capital = c_BOR_brunei": "capital = c_SUM_palembang",
     "capital = c_attie": "capital = c_tinmallal",
     "capital = c_toro": "capital = c_tinmallal",
 }
@@ -82,8 +88,20 @@ rlps = {
     "kisi": "tinmallal",
 }
 
+# Faiths whose entire original holy-site region is outside the reduced map.
+# Keep at least one valid site so CK3 1.20's holy_sites_min = 1 remains satisfied.
+faith_fallbacks = {
+    "aluk": "hoanya",
+    "dayawism": "hoanya",
+    "kaharingan": "hoanya",
+    "tolotang": "hoanya",
+    "siberian_pagan": "novgorod",
+    "ngaiism_pagan": "aswan",
+}
+
 
 MANIFEST_NAME = ".smaller_map_generated.json"
+VERSION_RE = re.compile(r"(?:^|/)release/(\d+)\.(\d+)(?:\.\d+)?\s*$")
 
 
 class UpdateError(RuntimeError):
@@ -113,20 +131,41 @@ def generate_landed_titles(
             "Configured title(s) no longer exist in this game version: " + ", ".join(missing)
             + ". Update title_delete for the installed game version."
         )
-    deleted_titles = catalog.descendants(selected)
+    for child, parent in title_rehome.items():
+        if child not in catalog.entries or parent not in catalog.entries:
+            raise UpdateError(f"Title rehome refers to missing title: {child} -> {parent}")
+        if child not in catalog.descendants(selected):
+            raise UpdateError(f"Rehomed title is not inside deleted land: {child}")
+        if parent in catalog.descendants(selected):
+            raise UpdateError(f"Rehome target is deleted: {parent}")
+    preserved = catalog.descendants(title_rehome)
+    deleted_titles = catalog.descendants(selected) - preserved
     deleted_provinces = catalog.province_ids(deleted_titles)
     roots = {name for name in selected if not catalog.ancestor_selected(name, selected)}
     by_file: dict[Path, list[Block]] = defaultdict(list)
     for name in roots:
         entry = catalog.entries[name]
         by_file[entry.relative_path].append(entry.block)
+    insertion_by_file: dict[Path, list[tuple[int, str]]] = defaultdict(list)
+    for child, parent in title_rehome.items():
+        entry, destination = catalog.entries[child], catalog.entries[parent]
+        source = entry.document.source
+        start = source.rfind("\n", 0, entry.block.start) + 1
+        subtree = source[start:entry.block.end]
+        # Preserve the vanilla subtree exactly; add one nesting level at its new parent.
+        moved = "\n".join("\t" + line if line else line for line in subtree.split("\n"))
+        insertion_by_file[destination.relative_path].append(
+            (destination.block.close_token.start, "\n" + moved + "\n")
+        )
     output: dict[Path, str] = {}
     replacement_counts: Counter = Counter()
     for relative, document in catalog.documents.items():
         edits = [(*document.removal_range(block), "") for block in by_file.get(relative, [])]
+        edits.extend((position, position, source) for position, source in insertion_by_file.get(relative, []))
         source = apply_edits(document.source, edits)
         source = replace_configured_text(source, replace_title, replacement_counts)
         if source != document.source:
+            source = source.rstrip("\r\n") + "\n"
             parse(source)  # fail before writing a syntactically unbalanced file
             output[relative] = source
     return output, deleted_titles, deleted_provinces, replacement_counts
@@ -141,11 +180,11 @@ def generate_holy_sites(
     deleted_titles: set[str],
 ) -> tuple[dict[Path, str], set[str], set[str], Path]:
     holy_dir = game / "common" / "religion" / "holy_site_types"
-    religion_dir = game / "common" / "religion" / "religion_types"
+    faith_dir = game / "common" / "religion" / "faith_types"
     if not holy_dir.is_dir():
         raise UpdateError(f"Missing CK3 holy-site directory: {holy_dir}")
-    if not religion_dir.is_dir():
-        raise UpdateError(f"Missing CK3 religion directory: {religion_dir}")
+    if not faith_dir.is_dir():
+        raise UpdateError(f"Missing CK3 faith directory: {faith_dir}")
     output: dict[Path, str] = {}
     removed_sites: set[str] = set()
     all_sites: set[str] = set()
@@ -167,84 +206,122 @@ def generate_holy_sites(
     bad_targets = sorted(set(rlps.values()) - (all_sites - removed_sites))
     if bad_targets:
         raise UpdateError("rlps points to missing/deleted holy site(s): " + ", ".join(bad_targets))
-    return output, removed_sites, all_sites, religion_dir
+    return output, removed_sites, all_sites, faith_dir
 
 
-def line_removal_range(source: str, start: int, end: int) -> tuple[int, int]:
+def faith_site_tokens(document: Document, block: Block):
+    return [
+        token for token in document.tokens
+        if block.open_token.end <= token.start < block.close_token.start
+        and token.depth == block.inner_depth and token.text not in {"{", "}", "="}
+    ]
+
+
+def site_removal_range(source: str, start: int, end: int) -> tuple[int, int]:
     line_start = source.rfind("\n", 0, start) + 1
-    newline = source.find("\n", end)
-    line_end = len(source) if newline < 0 else newline + 1
-    return line_start, line_end
+    line_break = source.find("\n", end)
+    line_end = len(source) if line_break < 0 else line_break + 1
+    if not source[line_start:start].strip() and (
+        not source[end:line_end].strip() or source[end:line_end].lstrip().startswith("#")
+    ):
+        return line_start, line_end
+    return start, end
 
 
-def generate_religions(
+def generate_faiths(
     game: Path,
-    religion_dir: Path,
+    faith_dir: Path,
     removed_sites: set[str],
+    valid_sites: set[str],
 ) -> tuple[dict[Path, str], Counter, Counter]:
+    invalid = (set(rlps.values()) | set(faith_fallbacks.values())) - valid_sites
+    if invalid:
+        raise UpdateError("Holy-site replacement points outside the retained map: " + ", ".join(sorted(invalid)))
     output: dict[Path, str] = {}
     replaced: Counter = Counter()
     removed: Counter = Counter()
-    for path in sorted(religion_dir.glob("*.txt")):
+    listed_sites = 0
+    for path in sorted(faith_dir.glob("*.txt")):
         document = read_document(path)
-        edits = scalar_assignment_edits(document, "holy_site", {key: value for key, value in rlps.items()})
-        replaced.update(
-            token.text for token in document.tokens
-            if token.text in rlps and any(start <= token.start < end for start, end, _ in edits)
-        )
-        replaced_sites = set(rlps) & removed_sites
-        # Removed holy sites without an explicit replacement are deleted as whole lines.
-        for index in range(len(document.tokens) - 2):
-            left, equals, right = document.tokens[index:index + 3]
-            if left.text == "holy_site" and equals.text == "=" and right.text in removed_sites - replaced_sites:
-                start, end = line_removal_range(document.source, left.start, right.end)
-                edits.append((start, end, ""))
-                removed[right.text] += 1
+        edits: list[tuple[int, int, str]] = []
+        for faith in document.roots:
+            site_blocks = [block for block in faith.children if block.key in {"holy_sites", "eminent_holy_sites"}]
+            surviving = [
+                rlps.get(token.text, token.text)
+                for block in site_blocks for token in faith_site_tokens(document, block)
+                if token.text not in removed_sites or token.text in rlps
+            ]
+            if not surviving and faith.key in faith_fallbacks:
+                ordinary = next((block for block in site_blocks if block.key == "holy_sites"), None)
+                if ordinary is None:
+                    raise UpdateError(f"Faith {faith.key} has no ordinary holy-sites block")
+                position = document.source.rfind("\n", 0, ordinary.close_token.start) + 1
+                edits.append((position, position, f"\t\t{faith_fallbacks[faith.key]}\n"))
+        for block in document.blocks():
+            if block.key not in {"holy_sites", "eminent_holy_sites"}:
+                continue
+            tokens = faith_site_tokens(document, block)
+            listed_sites += len(tokens)
+            for token in tokens:
+                if token.text not in removed_sites:
+                    continue
+                replacement = rlps.get(token.text, "")
+                if replacement:
+                    edits.append((token.start, token.end, replacement))
+                    replaced[token.text] += 1
+                else:
+                    start, end = site_removal_range(document.source, token.start, token.end)
+                    edits.append((start, end, ""))
+                    removed[token.text] += 1
         if edits:
             source = apply_edits(document.source, edits)
             parse(source)
             output[path.relative_to(game)] = source
+    if not listed_sites or (removed_sites and not replaced and not removed):
+        raise UpdateError(
+            "No affected faith holy-site references were found; CK3 may have changed its faith format"
+        )
     return output, replaced, removed
 
 
-def block_signature(block: Block) -> tuple[str, ...]:
-    result: list[str] = []
-    current: Block | None = block
-    while current:
-        result.append(current.key or "{}")
-        current = current.parent
-    return tuple(reversed(result))
+def audit_religion_main_sites(game: Path, valid_sites: set[str]) -> None:
+    base = game / "common" / "religion" / "religion_types"
+    if not base.is_dir():
+        raise UpdateError(f"Missing CK3 religion directory: {base}")
+    for path in sorted(base.glob("*.txt")):
+        document = read_document(path)
+        for block in document.blocks():
+            for assignment in document.direct_assignments(block):
+                if assignment.key == "main_holy_site" and assignment.value not in valid_sites:
+                    raise UpdateError(
+                        f"Religion main_holy_site references removed/unknown site "
+                        f"{assignment.value} in {path}:{assignment.key_token.line}"
+                    )
 
 
-def audit_religions(
+def audit_faiths(
     game: Path,
-    religion_dir: Path,
+    faith_dir: Path,
     generated: dict[Path, str],
     valid_sites: set[str],
 ) -> tuple[list[str], list[str], list[str]]:
     duplicates: list[str] = []
     sparse: list[str] = []
     undefined: list[str] = []
-    for path in sorted(religion_dir.glob("*.txt")):
+    for path in sorted(faith_dir.glob("*.txt")):
         relative = path.relative_to(game)
-        original = read_document(path)
-        effective = parse(generated.get(relative, original.source))
-        old_counts = {
-            block_signature(block): len([a for a in original.direct_assignments(block) if a.key == "holy_site"])
-            for block in original.blocks()
-            if any(a.key == "holy_site" for a in original.direct_assignments(block))
-        }
-        new_values = {
-            block_signature(block): [a.value for a in effective.direct_assignments(block) if a.key == "holy_site"]
-            for block in effective.blocks()
-        }
-        for signature, old_count in old_counts.items():
-            values = new_values.get(signature, [])
-            label = f"{relative}:{signature[-1]}"
+        effective = parse(generated.get(relative, read_document(path).source))
+        for faith in effective.roots:
+            values = [token.text for block in faith.children
+                      if block.key in {"holy_sites", "eminent_holy_sites"}
+                      for token in faith_site_tokens(effective, block)]
+            label = f"{relative}:{faith.key}"
             if len(values) != len(set(values)):
                 duplicates.append(label)
             if len(values) < 3:
-                sparse.append(f"{label} has {len(values)}/{old_count} holy sites")
+                sparse.append(f"{label} has {len(values)} holy sites")
+            if not values:
+                undefined.append(f"{label} has no holy sites")
             for value in values:
                 if value not in valid_sites:
                     undefined.append(f"{label} references undefined holy site {value}")
@@ -703,10 +780,17 @@ def effective_landed_audit(
 ) -> list[str]:
     problems: list[str] = []
     effective: dict[str, tuple[str | None, int | None]] = {}
+    effective_counts: Counter = Counter()
+    original_counts: Counter = Counter(
+        block.key
+        for document in catalog.documents.values()
+        for block in document.title_blocks()
+    )
     for relative, original in catalog.documents.items():
         document = parse(generated.get(relative, original.source))
         for block in document.title_blocks():
             assert block.key is not None
+            effective_counts[block.key] += 1
             parent_block = nearest_title_parent(block)
             province_text = document.direct_value(block, "province")
             province = int(province_text) if province_text and province_text.isdigit() else None
@@ -723,13 +807,18 @@ def effective_landed_audit(
         if name in deleted_titles:
             continue
         actual = effective.get(name)
-        expected = (entry.parent, entry.province)
+        expected = (title_rehome.get(name, entry.parent), entry.province)
         if actual is None:
             problems.append(f"{entry.relative_path}: surviving title {name} is missing")
         elif actual != expected:
             problems.append(
                 f"{entry.relative_path}: {name} expected parent/province {expected}, got {actual}"
             )
+    for name in deleted_titles & effective_counts.keys():
+        problems.append(f"Deleted title remains in landed titles: {name}")
+    for name, count in effective_counts.items():
+        if count > original_counts[name]:
+            problems.append(f"Title {name} duplicated during generation: {count}/{original_counts[name]}")
     return problems
 
 
@@ -753,6 +842,26 @@ def mod_target(mod: Path, relative: Path) -> Path:
     return target
 
 
+def updated_descriptor(game: Path, mod: Path) -> str:
+    branch = game.parent / "titus_branch.txt"
+    if not branch.is_file():
+        raise UpdateError(f"Cannot determine installed CK3 version: {branch} is missing")
+    match = VERSION_RE.search(branch.read_text(encoding="utf-8-sig"))
+    if not match:
+        raise UpdateError(f"Unrecognized CK3 release branch in {branch}")
+    descriptor = mod / "descriptor.mod"
+    source = descriptor.read_text(encoding="utf-8-sig")
+    updated, count = re.subn(
+        r'^supported_version="[^\r\n]*"(\r?)$',
+        lambda line: f'supported_version="{match.group(1)}.{match.group(2)}.*"{line.group(1)}',
+        source,
+        flags=re.MULTILINE,
+    )
+    if count != 1:
+        raise UpdateError(f"Expected exactly one supported_version in {descriptor}, found {count}")
+    return updated
+
+
 def write_outputs(
     repo: Path,
     mod: Path,
@@ -772,7 +881,11 @@ def write_outputs(
     for relative, source in sorted(text_outputs.items(), key=lambda item: str(item[0])):
         path = mod_target(mod, relative)
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(source, encoding="utf-8-sig", newline="")
+        path.write_text(
+            source,
+            encoding="utf-8" if relative == Path("descriptor.mod") else "utf-8-sig",
+            newline="",
+        )
     map_path = mod_target(mod, Path("map_data/provinces.png"))
     map_path.parent.mkdir(parents=True, exist_ok=True)
     temp = map_path.with_suffix(".png.tmp")
@@ -786,6 +899,17 @@ def write_outputs(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
+    for relative, expected in text_outputs.items():
+        path = mod_target(mod, relative)
+        encoding = "utf-8" if relative == Path("descriptor.mod") else "utf-8-sig"
+        if path.read_bytes() != expected.encode(encoding):
+            raise UpdateError(f"Generated text did not round-trip correctly: {path}")
+    with Image.open(map_path) as written_map:
+        if written_map.mode != "RGB" or written_map.size != province_image.size:
+            raise UpdateError(f"Generated province map has wrong mode or dimensions: {map_path}")
+        written_map.verify()
+    if any(mod_target(mod, path).exists() for path in stale):
+        raise UpdateError("Stale generated files remain after update")
     return len(outputs), len(stale)
 
 
@@ -799,6 +923,7 @@ def run(game: Path, mod: Path, dry_run: bool) -> int:
         raise UpdateError("Game input and mod output directories must not overlap")
     if not (game / "map_data" / "provinces.png").is_file():
         raise UpdateError(f"Not a CK3 game data directory: {game}")
+    descriptor_text = updated_descriptor(game, mod)
     catalog, duplicates = load_title_catalog(game)
     if duplicates:
         log("WARNING: vanilla has duplicate title definitions: " + ", ".join(duplicates))
@@ -813,10 +938,13 @@ def run(game: Path, mod: Path, dry_run: bool) -> int:
         deleted_provinces,
         absorbed_special_count,
     ) = generate_province_map(game, deleted_provinces, deleted_titles, catalog)
-    holy, removed_sites, all_sites, religion_dir = generate_holy_sites(game, deleted_titles)
-    religions, site_replacements, removed_references = generate_religions(game, religion_dir, removed_sites)
-    duplicate_sites, sparse_faiths, undefined_sites = audit_religions(
-        game, religion_dir, religions, all_sites - removed_sites
+    holy, removed_sites, all_sites, faith_dir = generate_holy_sites(game, deleted_titles)
+    audit_religion_main_sites(game, all_sites - removed_sites)
+    faiths, site_replacements, removed_references = generate_faiths(
+        game, faith_dir, removed_sites, all_sites - removed_sites
+    )
+    duplicate_sites, sparse_faiths, undefined_sites = audit_faiths(
+        game, faith_dir, faiths, all_sites - removed_sites
     )
     if duplicate_sites or undefined_sites:
         raise UpdateError(
@@ -831,7 +959,8 @@ def run(game: Path, mod: Path, dry_run: bool) -> int:
     history, history_count, cleared_history_lieges = generate_title_history(game, deleted_titles)
     province_history, province_history_count = generate_province_history(game, deleted_provinces)
     adjacencies, adjacency_count = generate_adjacencies(game, deleted_provinces)
-    text_outputs = landed | holy | religions | bookmarks | history | province_history | adjacencies
+    text_outputs = landed | holy | faiths | bookmarks | history | province_history | adjacencies
+    text_outputs[Path("descriptor.mod")] = descriptor_text
     problems = effective_landed_audit(catalog, landed, deleted_titles)
     if problems:
         raise UpdateError("Surviving landed-title references point into deleted land:\n" + "\n".join(problems[:30]))
