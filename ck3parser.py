@@ -263,14 +263,9 @@ def scalar_assignment_edits(
     document: Document,
     key: str,
     value_replacements: dict[str, str],
-    allowed_ranges: Sequence[tuple[int, int]] | None = None,
+    allowed_ranges: Sequence[tuple[int, int]],
 ) -> list[tuple[int, int, str]]:
-    """Build token-safe edits for scalar assignments anywhere in a document."""
-    ranges = (
-        allowed_ranges
-        if allowed_ranges is not None
-        else [(0, len(document.source))]
-    )
+    """Build token-safe scalar edits within the selected source ranges."""
     edits: list[tuple[int, int, str]] = []
     tokens = document.tokens
     for index in range(len(tokens) - 2):
@@ -282,6 +277,6 @@ def scalar_assignment_edits(
         replacement = value_replacements.get(right.text)
         if replacement is None:
             continue
-        if any(start <= left.start and right.end <= end for start, end in ranges):
+        if any(start <= left.start and right.end <= end for start, end in allowed_ranges):
             edits.append((right.start, right.end, replacement))
     return edits

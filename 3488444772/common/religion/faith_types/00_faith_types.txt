@@ -3909,6 +3909,8 @@ utaki = {
 	}
 
 	eminent_holy_sites = {
+		amandee
+		sefa_utaki
 	}
 
 	holy_sites = {

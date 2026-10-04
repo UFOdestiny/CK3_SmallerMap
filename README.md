@@ -5,8 +5,12 @@ performance. It is published on the [Steam
 Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3488444772).
 
 The repository includes a source-preserving update tool. When CK3 is updated,
-you can rebuild the Mod from the installed game data instead of editing
+you can rebuild the mod from the installed game data instead of editing
 `provinces.png` manually in Photoshop.
+
+The current selection keeps Taiwan and Ryukyu under the Nusantara empire and
+restores Ryukyu's titular empire. The Philippines and the selected Southeast
+Asian kingdoms remain outside the playable map.
 
 ## Requirements
 
@@ -20,25 +24,26 @@ Install the Python dependencies once:
 python -m pip install -r requirements.txt
 ```
 
-## Updating the Mod
+## Rebuild and validate
 
 Edit the settings near the top of
 [`update_mod.py`](update_mod.py):
 
 - `title_delete`: landed titles to remove. A selected empire, kingdom, duchy,
   county, or barony removes its complete descendant tree.
-- `title_rehome`: preserve a subtree inside a deleted empire and attach it to
-  a surviving title. Currently, Taiwan (`k_liuqiu`) is attached to Jingyang
-  (`e_jingyang`) while Nusantara is removed.
+- `province_receiver_overrides`: use a known unowned impassable province for
+  deleted Philippine islands so adjacent wasteland colors do not appear in de
+  jure map modes. The receiver must still exist in the installed game.
 - `replace_title`: exact text replacements for surviving landed titles whose
-  capital would otherwise point to a deleted county.
+  capital would otherwise point to a deleted county. Nusantara's capital is
+  moved from Tondo to Taiwan in the current configuration.
 - `rlps`: replacements for removed holy sites. Keys are removed holy-site IDs;
   values must be holy sites that remain on the map.
 - `faith_fallbacks`: one surviving holy site for faiths whose entire original
   holy-site region has been removed. CK3 1.20 requires at least one per faith.
 
 The default game path is declared as `GAME_PATH`. It can be overridden for one
-run with `--game-path`. From the repository root, the complete local rebuild is:
+run with `--game-path`. From the repository root, run:
 
 ```powershell
 python update_mod.py
@@ -50,20 +55,19 @@ For a different CK3 installation:
 python update_mod.py --game-path "E:\SteamLibrary\steamapps\common\Crusader Kings III\game"
 ```
 
-Use a dry run first after changing the configuration or installing a new CK3
-version:
+To validate without writing or deleting files:
 
 ```powershell
 python update_mod.py --dry-run
 ```
 
-`--dry-run` performs the complete parse, map rewrite, and integrity audit, but
-does not write or delete any Mod files.
+`--dry-run` performs the complete parse, map rewrite, and integrity audit but
+does not write or delete any mod files.
 
-## What the Generator Updates
+## Generated output
 
-The generator reads the installed game as input and rebuilds the affected files
-inside `3488444772`:
+The generator reads the installed game as read-only input and rebuilds affected
+files only inside this repository's `3488444772` directory:
 
 - every affected `common/landed_titles/*.txt` file, not only
   `00_landed_titles.txt`;
@@ -74,7 +78,8 @@ inside `3488444772`:
 - `descriptor.mod`, with `supported_version` derived from the installed
   game's `titus_branch.txt` (for example, `1.20.*`).
 
-Deleted provinces are recolored with a neighboring impassable province color.
+Deleted provinces are recolored with a nearby impassable province color, except
+for the explicit Philippine receiver override.
 The tool preserves valid RGB values from `definition.csv`; it does not create
 anti-aliased colors or new province colors. It also removes enclosed rivers,
 lakes, impassable terrain, and holding-less/road provinces that would otherwise
@@ -84,7 +89,7 @@ For surviving title history, `liege` and `de_jure_liege` references to deleted
 titles are explicitly set to `0`. This prevents a restored region from losing
 its history because one historical entry still references a deleted liege.
 
-## Safety Checks
+## Validation and safety
 
 The pre-write checks reject, among other issues:
 
@@ -92,28 +97,26 @@ The pre-write checks reject, among other issues:
 - a capital or de-jure liege that still references deleted land;
 - title history that still points to a deleted liege;
 - a changed parent or province assignment for a surviving landed title;
-- a rehome target that is missing or selected for deletion;
+- a title-less landed-title override that still contains executable text;
 - malformed Clausewitz braces or unknown map colors;
 - duplicate or undefined faith holy sites, or a faith left with no holy site;
-- no reachable impassable province to receive deleted map pixels.
+- no reachable or configured impassable province to receive deleted map pixels.
 
 After writing, the command reopens every generated text file and the PNG to
 verify that they are readable and have the expected content or dimensions.
 Some faiths intentionally retain only one or two sites after their original
-region is removed; none are left with zero. These are static checks, so load
-the Mod in CK3 and start a new game before publishing a new release.
+region is removed; none are left with zero. These are static checks, not proof
+of correct in-game rendering. Fully restart CK3 and start a new game before
+publishing a new release. Existing saves do not reinitialize map and title data.
 
 Generated file paths are recorded in `.smaller_map_generated.json`. On a normal
 run, obsolete files previously generated by this tool are removed from the Mod
 folder. Files outside the manifest are left alone.
 
-The game directory is always read-only input. Output is locked to this
-repository's `3488444772` folder; the command line cannot redirect it, and the
-tool rejects a game directory that overlaps the Mod directory.
-
-The Python command only generates and validates local Mod files. It does not
-commit or push Git changes and does not upload to Steam Workshop; publication
-is a separate, deliberate step.
+The command line cannot redirect output to the game or Workshop directories,
+and overlapping game/mod paths are rejected. To test a rebuilt mod through the
+Steam installation, sync the generated directory to the local Workshop copy
+separately. This script does not commit, push, or upload to Steam Workshop.
 
 ## Project Layout
 
@@ -122,10 +125,6 @@ is a separate, deliberate step.
 - `ck3parser.py` — source-preserving Clausewitz tokenizer and edit helpers.
 - `ck3titles.py` — landed-title catalog, parent hierarchy, and province index.
 - `3488444772/` — generated Mod content.
-
-After updating map data or title history, fully restart CK3 and start a new
-game. Existing save files do not reinitialize province, title, or historical
-ownership data.
 
 ## Acknowledgement
 

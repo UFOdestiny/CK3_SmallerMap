@@ -1,6 +1,6 @@
 """Regenerate CK3 Smaller Map from the currently installed game data.
 
-Edit the three settings below, then run this file.  The generator keeps the game
+Edit the settings below, then run this file. The generator keeps the game
 files' original formatting, removes exact AST blocks, updates holy sites/history/
 bookmarks, and paints every deleted barony province into a nearby impassable province.
 """
@@ -48,10 +48,13 @@ title_delete = [
     "e_abyssinia",
     "e_siberia",
     "e_srivijaya",
-    "e_nusantara",
     "e_brunei",
     "e_majapahit",
-    "e_ruucuu",
+    "k_lusung",
+    "k_kabisay-an",
+    "k_tanjungnagara",
+    "k_sulawesi",
+    "k_maluku",
     "k_permia",
     "k_sahara",
     "k_angara",
@@ -67,10 +70,13 @@ title_delete = [
     "d_laamp_lembongs_band",
 ]
 
-# Preserve an entire title subtree while deleting its former parent empire.
-title_rehome = {"k_liuqiu": "e_jingyang"}
+# Keep the removed Philippine islands in one unowned impassable map province.
+# Nearby Vietnamese/Chinese impassable receivers can inherit colors in de jure
+# map modes even though the Philippine landed titles have been removed.
+province_receiver_overrides = {"k_lusung": 11215, "k_kabisay-an": 11215}
 
 replace_title = {
+    "capital = c_PHI_tondo": "capital = c_hoanya",
     "capital = c_semien": "capital = c_aswan",
     "capital = c_tigre": "capital = c_aswan",
     "capital = c_jenne": "capital = c_tinmallal",
@@ -131,42 +137,28 @@ def generate_landed_titles(
             "Configured title(s) no longer exist in this game version: " + ", ".join(missing)
             + ". Update title_delete for the installed game version."
         )
-    for child, parent in title_rehome.items():
-        if child not in catalog.entries or parent not in catalog.entries:
-            raise UpdateError(f"Title rehome refers to missing title: {child} -> {parent}")
-        if child not in catalog.descendants(selected):
-            raise UpdateError(f"Rehomed title is not inside deleted land: {child}")
-        if parent in catalog.descendants(selected):
-            raise UpdateError(f"Rehome target is deleted: {parent}")
-    preserved = catalog.descendants(title_rehome)
-    deleted_titles = catalog.descendants(selected) - preserved
+    deleted_titles = catalog.descendants(selected)
     deleted_provinces = catalog.province_ids(deleted_titles)
     roots = {name for name in selected if not catalog.ancestor_selected(name, selected)}
     by_file: dict[Path, list[Block]] = defaultdict(list)
     for name in roots:
         entry = catalog.entries[name]
         by_file[entry.relative_path].append(entry.block)
-    insertion_by_file: dict[Path, list[tuple[int, str]]] = defaultdict(list)
-    for child, parent in title_rehome.items():
-        entry, destination = catalog.entries[child], catalog.entries[parent]
-        source = entry.document.source
-        start = source.rfind("\n", 0, entry.block.start) + 1
-        subtree = source[start:entry.block.end]
-        # Preserve the vanilla subtree exactly; add one nesting level at its new parent.
-        moved = "\n".join("\t" + line if line else line for line in subtree.split("\n"))
-        insertion_by_file[destination.relative_path].append(
-            (destination.block.close_token.start, "\n" + moved + "\n")
-        )
     output: dict[Path, str] = {}
     replacement_counts: Counter = Counter()
     for relative, document in catalog.documents.items():
         edits = [(*document.removal_range(block), "") for block in by_file.get(relative, [])]
-        edits.extend((position, position, source) for position, source in insertion_by_file.get(relative, []))
         source = apply_edits(document.source, edits)
         source = replace_configured_text(source, replace_title, replacement_counts)
         if source != document.source:
-            source = source.rstrip("\r\n") + "\n"
-            parse(source)  # fail before writing a syntactically unbalanced file
+            generated_document = parse(source)  # fail before writing an unbalanced file
+            # An override must still exist when every title in a vanilla file is
+            # removed. Leftover @variables are not valid standalone landed titles:
+            # CK3 interprets their values as title names and rejects the file.
+            if next(generated_document.title_blocks(), None) is None:
+                source = "# All landed titles removed by CK3 Smaller Map.\n"
+            else:
+                source = source.rstrip("\r\n") + "\n"
             output[relative] = source
     return output, deleted_titles, deleted_provinces, replacement_counts
 
@@ -464,7 +456,7 @@ def read_definitions(path: Path) -> tuple[dict[int, tuple[int, int, int]], dict[
             rgb = tuple(int(item) for item in row[1:4])
             code = rgb[0] << 16 | rgb[1] << 8 | rgb[2]
             ids[province] = rgb
-            # Vanilla 1.19 contains a duplicate black placeholder (province 12946).
+            # Vanilla contains duplicate black placeholders (IDs 0 and 12946).
             # The first definition owns ambiguous pixels; such later IDs cannot safely
             # be used as paint receivers and therefore stay out of color_to_id.
             color_to_id.setdefault(code, province)
@@ -643,11 +635,11 @@ def choose_receivers(
         else:
             # Search the province graph, not raw pixel distance. This handles islands
             # while preferring a geographically local impassable province.
-            queue = deque((province, 0) for province in component)
+            queue = deque(component)
             seen = set(component)
             receiver = -1
             while queue and receiver < 0:
-                province, _distance = queue.popleft()
+                province = queue.popleft()
                 for neighbor in graph.get(province, ()):
                     if neighbor in seen:
                         continue
@@ -655,7 +647,7 @@ def choose_receivers(
                         receiver = neighbor
                         break
                     seen.add(neighbor)
-                    queue.append((neighbor, _distance + 1))
+                    queue.append(neighbor)
             if receiver < 0:
                 raise UpdateError(f"No impassable receiver reachable for deleted component {sorted(component)[:8]}")
         for province in component:
@@ -717,6 +709,13 @@ def generate_province_map(
         graph,
         boundaries,
     )
+    for title, receiver in province_receiver_overrides.items():
+        if title not in deleted_titles:
+            raise UpdateError(f"Map receiver override refers to a surviving title: {title}")
+        if receiver not in groups["impassable_mountains"] or receiver not in present_ids - physical_deleted:
+            raise UpdateError(f"Map receiver override is not a surviving impassable province: {receiver}")
+        for province in catalog.province_ids(catalog.descendants({title})) & physical_deleted:
+            receivers[province] = receiver
     changed = 0
     lookup = np.arange(1 << 24, dtype=np.uint32)
     for province, receiver in receivers.items():
@@ -787,8 +786,12 @@ def effective_landed_audit(
         for block in document.title_blocks()
     )
     for relative, original in catalog.documents.items():
-        document = parse(generated.get(relative, original.source))
-        for block in document.title_blocks():
+        source = generated.get(relative, original.source)
+        document = parse(source)
+        blocks = list(document.title_blocks())
+        if relative in generated and not blocks and document.tokens:
+            problems.append(f"{relative}: title-less override contains executable text")
+        for block in blocks:
             assert block.key is not None
             effective_counts[block.key] += 1
             parent_block = nearest_title_parent(block)
@@ -807,7 +810,7 @@ def effective_landed_audit(
         if name in deleted_titles:
             continue
         actual = effective.get(name)
-        expected = (title_rehome.get(name, entry.parent), entry.province)
+        expected = (entry.parent, entry.province)
         if actual is None:
             problems.append(f"{entry.relative_path}: surviving title {name} is missing")
         elif actual != expected:
@@ -913,12 +916,9 @@ def write_outputs(
     return len(outputs), len(stale)
 
 
-def run(game: Path, mod: Path, dry_run: bool) -> int:
+def run(game: Path, dry_run: bool) -> int:
     game = game.resolve()
-    mod = mod.resolve()
-    expected_mod = (REPO_PATH / "3488444772").resolve()
-    if mod != expected_mod:
-        raise UpdateError(f"Output is locked to the mod directory: {expected_mod}")
+    mod = MOD_PATH.resolve()
     if mod == game or mod.is_relative_to(game) or game.is_relative_to(mod):
         raise UpdateError("Game input and mod output directories must not overlap")
     if not (game / "map_data" / "provinces.png").is_file():
@@ -994,17 +994,13 @@ def run(game: Path, mod: Path, dry_run: bool) -> int:
     return 0
 
 
-def build_parser() -> argparse.ArgumentParser:
+def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--game-path", type=Path, default=GAME_PATH, help="CK3 game directory containing common/, history/, map_data/")
     parser.add_argument("--dry-run", action="store_true", help="Validate and report without writing files")
-    return parser
-
-
-def main(argv: list[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
+    args = parser.parse_args()
     try:
-        return run(args.game_path, MOD_PATH, args.dry_run)
+        return run(args.game_path, args.dry_run)
     except (UpdateError, TitleError, OSError, ValueError) as error:
         print(f"ERROR: {error}", file=sys.stderr)
         return 2

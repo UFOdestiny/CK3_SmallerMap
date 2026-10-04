@@ -18,7 +18,6 @@ class TitleError(RuntimeError):
 class TitleEntry:
     name: str
     block: Block
-    document: Document
     relative_path: Path
     parent: str | None
     children: list[str] = field(default_factory=list)
@@ -65,7 +64,7 @@ def load_title_catalog(game: Path) -> tuple[TitleCatalog, list[str]]:
             assert block.key is not None
             parent = nearest_title_parent(block)
             value = document.direct_value(block, "province")
-            entry = TitleEntry(block.key, block, document, relative, parent.key if parent else None, province=int(value) if value and value.isdigit() else None)
+            entry = TitleEntry(block.key, block, relative, parent.key if parent else None, province=int(value) if value and value.isdigit() else None)
             if block.key in entries:
                 duplicates.add(block.key)
             else:
