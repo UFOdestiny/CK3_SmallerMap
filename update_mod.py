@@ -70,10 +70,13 @@ title_delete = [
     "d_laamp_lembongs_band",
 ]
 
-# Keep the removed Philippine islands in one unowned impassable map province.
-# Nearby Vietnamese/Chinese impassable receivers can inherit colors in de jure
-# map modes even though the Philippine landed titles have been removed.
-province_receiver_overrides = {"k_lusung": 11215, "k_kabisay-an": 11215}
+# Paint deleted Southeast Asian land, including untitled mountains and lakes,
+# with the same RGB (10, 13, 16) receiver used for Kalimantan.
+province_receiver_overrides = dict.fromkeys(
+    ("e_srivijaya", "e_brunei", "k_lusung", "k_kabisay-an",
+     "k_tanjungnagara", "k_sulawesi", "k_maluku"),
+    11215,
+)
 
 replace_title = {
     "capital = c_PHI_tondo": "capital = c_hoanya",
@@ -468,7 +471,7 @@ def parse_map_province_groups(default_map: Path) -> dict[str, set[int]]:
     source = re.sub(r"#.*", "", source)
     result: dict[str, set[int]] = defaultdict(set)
     pattern = re.compile(
-        r"(river_provinces|lakes|impassable_mountains)"
+        r"(sea_zones|impassable_seas|river_provinces|lakes|impassable_mountains)"
         r"\s*=\s*(LIST|RANGE)\s*\{([^}]*)\}",
         re.I,
     )
@@ -481,6 +484,8 @@ def parse_map_province_groups(default_map: Path) -> dict[str, set[int]]:
         result[name.lower()].update(values)
     if not result["impassable_mountains"]:
         raise UpdateError(f"No impassable_mountains entries found in {default_map}")
+    if not result["sea_zones"]:
+        raise UpdateError(f"No sea_zones entries found in {default_map}")
     return result
 
 
@@ -547,6 +552,63 @@ def absorb_enclosed_special_provinces(
             break
         absorbed.update(frontier)
     return absorbed
+
+
+def regional_receiver_assignments(
+    game: Path,
+    catalog: TitleCatalog,
+    deleted_titles: set[str],
+    present: set[int],
+    groups: dict[str, set[int]],
+    graph: dict[int, set[int]],
+) -> dict[int, int]:
+    """Include untitled land components adjoining a configured deleted region.
+
+    Definition-only mountains are absent from both landed titles and some
+    default.map mountain lists. Exclude seas explicitly and reject components
+    touching retained baronies, instead of relying on coastline boundary ratios.
+    """
+    titled = catalog.province_ids(catalog.entries)
+    retained = catalog.province_ids(catalog.entries.keys() - deleted_titles)
+    water = groups["sea_zones"] | groups["impassable_seas"]
+    targets = set(province_receiver_overrides.values())
+    regions: dict[int, set[int]] = defaultdict(set)
+    for title, receiver in province_receiver_overrides.items():
+        if title not in deleted_titles:
+            raise UpdateError(f"Map receiver override refers to a surviving title: {title}")
+        if receiver not in groups["impassable_mountains"] or receiver not in present:
+            raise UpdateError(f"Map receiver override is not a present impassable province: {receiver}")
+        if receiver in titled:
+            raise UpdateError(f"Map receiver override has a landed title: {receiver}")
+        descendants = catalog.descendants({title})
+        regions[receiver].update(catalog.province_ids(descendants))
+        regions[receiver].update(deleted_history_file_provinces(game, descendants))
+    assignments = {province: receiver for receiver, region in regions.items()
+                   for province in region & present}
+    unseen = present - titled - water - targets - {0}
+    while unseen:
+        component, queue, boundary = set(), [unseen.pop()], set()
+        while queue:
+            province = queue.pop()
+            component.add(province)
+            for neighbor in graph.get(province, ()):
+                if neighbor in unseen:
+                    unseen.remove(neighbor)
+                    queue.append(neighbor)
+                else:
+                    boundary.add(neighbor)
+        boundary.difference_update(component)
+        if boundary & retained:
+            continue
+        receivers = {receiver for receiver, region in regions.items() if boundary & region}
+        if len(receivers) > 1:
+            raise UpdateError(f"Untitled land touches conflicting map receivers: {sorted(receivers)}")
+        if receivers:
+            receiver = receivers.pop()
+            assignments.update(dict.fromkeys(component, receiver))
+    if assignments.keys() & water:
+        raise UpdateError("Regional map fill would repaint sea provinces")
+    return assignments
 
 
 class UnionFind:
@@ -683,6 +745,11 @@ def generate_province_map(
     groups = parse_map_province_groups(game / "map_data" / "default.map")
     deleted_provinces = set(deleted_provinces)
     deleted_provinces.update(deleted_history_file_provinces(game, deleted_titles))
+    forced_receivers = regional_receiver_assignments(
+        game, catalog, deleted_titles, present_ids, groups, graph,
+    )
+    regional_special = forced_receivers.keys() - deleted_provinces
+    deleted_provinces.update(forced_receivers)
     titled_provinces = {
         entry.province for entry in catalog.entries.values() if entry.province is not None
     }
@@ -690,7 +757,7 @@ def generate_province_map(
     absorbed = absorb_enclosed_special_provinces(
         deleted_provinces,
         surviving_titled,
-        present_ids,
+        present_ids - set(province_receiver_overrides.values()),
         groups,
         graph,
         boundaries,
@@ -709,13 +776,9 @@ def generate_province_map(
         graph,
         boundaries,
     )
-    for title, receiver in province_receiver_overrides.items():
-        if title not in deleted_titles:
-            raise UpdateError(f"Map receiver override refers to a surviving title: {title}")
-        if receiver not in groups["impassable_mountains"] or receiver not in present_ids - physical_deleted:
-            raise UpdateError(f"Map receiver override is not a surviving impassable province: {receiver}")
-        for province in catalog.province_ids(catalog.descendants({title})) & physical_deleted:
-            receivers[province] = receiver
+    if set(forced_receivers.values()) & physical_deleted:
+        raise UpdateError("Regional map fill receiver is selected for deletion")
+    receivers.update(forced_receivers)
     changed = 0
     lookup = np.arange(1 << 24, dtype=np.uint32)
     for province, receiver in receivers.items():
@@ -745,7 +808,7 @@ def generate_province_map(
         Image.fromarray(rgb),
         changed,
         deleted_provinces,
-        len(absorbed),
+        len(absorbed | regional_special),
     )
 
 

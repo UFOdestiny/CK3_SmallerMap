@@ -31,9 +31,10 @@ Edit the settings near the top of
 
 - `title_delete`: landed titles to remove. A selected empire, kingdom, duchy,
   county, or barony removes its complete descendant tree.
-- `province_receiver_overrides`: use a known unowned impassable province for
-  deleted Philippine islands so adjacent wasteland colors do not appear in de
-  jure map modes. The receiver must still exist in the installed game.
+- `province_receiver_overrides`: give each deleted region one impassable
+  receiver, including its adjoining untitled land. The Southeast Asian islands
+  and Malay Peninsula use province `11215`, RGB `(10, 13, 16)`, matching
+  Kalimantan. The receiver must exist in the installed game.
 - `replace_title`: exact text replacements for surviving landed titles whose
   capital would otherwise point to a deleted county. Nusantara's capital is
   moved from Tondo to Taiwan in the current configuration.
@@ -79,11 +80,17 @@ files only inside this repository's `3488444772` directory:
   game's `titus_branch.txt` (for example, `1.20.*`).
 
 Deleted provinces are recolored with a nearby impassable province color, except
-for the explicit Philippine receiver override.
+for regions with an explicit receiver override.
 The tool preserves valid RGB values from `definition.csv`; it does not create
 anti-aliased colors or new province colors. It also removes enclosed rivers,
 lakes, impassable terrain, and holding-less/road provinces that would otherwise
 leave colored fragments inside deleted land.
+
+For overridden regions, the tool also follows connected untitled land in the
+original map. This includes mountains missing from `default.map`'s mountain
+lists. Components touching surviving baronies are retained; sea zones and
+impassable seas are excluded. This fills island interiors and coastal fragments
+without relying on hand-painted masks or colors from an older mod image.
 
 For surviving title history, `liege` and `de_jure_liege` references to deleted
 titles are explicitly set to `0`. This prevents a restored region from losing
