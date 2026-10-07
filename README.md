@@ -95,11 +95,27 @@ impassable seas are excluded. This fills island interiors and coastal fragments
 without relying on hand-painted masks or colors from an older mod image.
 Untitled pockets adjoining the receiver itself are included too, so enclosed
 Siberian rivers, lakes, and mountain provinces use the surrounding wasteland
-color. A pixel-level enclosure pass also fills disconnected river/lake fragments
-whose province ID is still used elsewhere. Entire enclosed components touching
-retained baronies or sea pixels are protected. Shared province history and
-adjacencies are removed only when all of that province's pixels disappear.
-The generated map is checked again for fillable enclaves before files are written.
+color.
+
+Map cleanup uses the same pipeline across all generated fill regions:
+
+1. Read deleted-title province history once, then build the original province
+   adjacency graph (including the east/west world-map seam).
+2. Apply regional overrides and bounded absorption of untitled special terrain.
+   Other deleted components use the nearest reachable impassable receiver;
+   equal choices are resolved deterministically by province ID.
+3. Recolor whole provinces with a single lookup per pixel, then check **every
+   receiver actually used**, not just the Southeast Asia/Siberia overrides.
+   One connected-component labeling pass per receiver fills enclosed untitled
+   pixels, including disconnected fragments of a shared river/lake province.
+   Pixel connectivity also respects the world-map seam.
+4. Protect retained baronies, sea zones, existing receiver pixels, and complete
+   enclosed components containing any of them. Compare protected pixels against
+   the original game map before writing. Convert back to RGB only once.
+5. Remove shared province history and adjacencies only when all pixels of that
+   province disappear; a partly filled lake retains its outside shapes and data.
+
+No old hand-painted map, province-name guesswork, or one-off island mask is used.
 
 For surviving title history, `liege` and `de_jure_liege` references to deleted
 titles are explicitly set to `0`. This prevents a restored region from losing
@@ -115,6 +131,8 @@ The pre-write checks reject, among other issues:
 - a changed parent or province assignment for a surviving landed title;
 - a title-less landed-title override that still contains executable text;
 - malformed Clausewitz braces or unknown map colors;
+- invalid province RGB definitions or map ranges, ambiguous receiver colors,
+  or any modification of protected original map pixels;
 - duplicate or undefined faith holy sites, or a faith left with no holy site;
 - no reachable or configured impassable province to receive deleted map pixels.
 

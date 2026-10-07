@@ -14,7 +14,6 @@ import json
 from pathlib import Path
 import re
 import sys
-from typing import Iterable
 
 import numpy as np
 from PIL import Image
@@ -463,6 +462,8 @@ def read_definitions(path: Path) -> tuple[dict[int, tuple[int, int, int]], dict[
                 continue
             province = int(row[0])
             rgb = tuple(int(item) for item in row[1:4])
+            if province in ids or any(channel < 0 or channel > 255 for channel in rgb):
+                raise UpdateError(f"Invalid or duplicate province definition: {province}")
             code = rgb[0] << 16 | rgb[1] << 8 | rgb[2]
             ids[province] = rgb
             # Vanilla contains duplicate black placeholders (IDs 0 and 12946).
@@ -483,7 +484,9 @@ def parse_map_province_groups(default_map: Path) -> dict[str, set[int]]:
     )
     for name, kind, body in pattern.findall(source):
         numbers = [int(item) for item in re.findall(r"\d+", body)]
-        if kind.upper() == "RANGE" and len(numbers) == 2:
+        if kind.upper() == "RANGE":
+            if len(numbers) != 2 or numbers[0] > numbers[1]:
+                raise UpdateError(f"Invalid {name} RANGE in {default_map}")
             values = range(numbers[0], numbers[1] + 1)
         else:
             values = numbers
@@ -498,9 +501,9 @@ def parse_map_province_groups(default_map: Path) -> dict[str, set[int]]:
 def deleted_history_file_provinces(
     game: Path,
     deleted_titles: set[str],
-) -> set[int]:
+) -> dict[str, set[int]]:
     """Include holding-none/road provinces stored in deleted kingdom history files."""
-    result: set[int] = set()
+    result: dict[str, set[int]] = {}
     base = game / "history" / "provinces"
     if not base.is_dir():
         return result
@@ -508,11 +511,11 @@ def deleted_history_file_provinces(
         if path.stem not in deleted_titles:
             continue
         document = read_document(path)
-        result.update(
+        result[path.stem] = {
             int(block.key)
             for block in document.roots
             if block.key and block.key.isdigit()
-        )
+        }
     return result
 
 
@@ -578,7 +581,7 @@ def province_components(candidates: set[int], graph: dict[int, set[int]]):
 
 
 def regional_receiver_assignments(
-    game: Path,
+    history_provinces: dict[str, set[int]],
     catalog: TitleCatalog,
     deleted_titles: set[str],
     present: set[int],
@@ -605,7 +608,8 @@ def regional_receiver_assignments(
             raise UpdateError(f"Map receiver override has a landed title: {receiver}")
         descendants = catalog.descendants({title})
         regions[receiver].update(catalog.province_ids(descendants))
-        regions[receiver].update(deleted_history_file_provinces(game, descendants))
+        for name in descendants & history_provinces.keys():
+            regions[receiver].update(history_provinces[name])
     assignments = {province: receiver for receiver, region in regions.items()
                    for province in region & present}
     candidates = present - titled - water - targets - {0}
@@ -634,27 +638,24 @@ def wasteland_enclaves(
     One river/lake province can have disconnected shapes; province-ID adjacency
     alone cannot distinguish its enclosed pixels from its surviving branches.
     """
-    mask = codes == receiver_code
-    holes = ndimage.binary_fill_holes(mask) & ~mask
-    labels, _ = ndimage.label(holes)
-    blocked = np.unique(labels[protected_pixels])
-    return holes & ~np.isin(labels, blocked)
-
-
-class UnionFind:
-    def __init__(self, values: Iterable[int]):
-        self.parent = {value: value for value in values}
-
-    def find(self, value: int) -> int:
-        parent = self.parent[value]
-        if parent != value:
-            self.parent[value] = self.find(parent)
-        return self.parent[value]
-
-    def union(self, left: int, right: int) -> None:
-        left, right = self.find(left), self.find(right)
-        if left != right:
-            self.parent[right] = left
+    # Label the complement once instead of flood-filling then labeling it again.
+    labels, count = ndimage.label(codes != receiver_code)
+    blocked = np.zeros(count + 1, dtype=bool)
+    blocked[0] = True  # The receiver itself is never a repaint candidate.
+    blocked[labels[protected_pixels]] = True
+    blocked[labels[0, :]] = True
+    blocked[labels[-1, :]] = True
+    # CK3 wraps east/west, so components across the seam share protection status.
+    seam: dict[int, set[int]] = defaultdict(set)
+    for left, right in np.unique(np.column_stack((labels[:, 0], labels[:, -1])), axis=0):
+        if left and right and left != right:
+            seam[int(left)].add(int(right))
+            seam[int(right)].add(int(left))
+    for component, _ in province_components(set(seam), seam):
+        indices = list(component)
+        if np.any(blocked[indices]):
+            blocked[indices] = True
+    return ~blocked[labels]
 
 
 def image_codes(rgb: np.ndarray) -> np.ndarray:
@@ -704,35 +705,27 @@ def choose_receivers(
     graph: dict[int, set[int]],
     boundaries: Counter,
 ) -> dict[int, int]:
-    union = UnionFind(deleted)
-    for province in deleted:
-        for neighbor in graph.get(province, ()):
-            if neighbor in deleted:
-                union.union(province, neighbor)
-    components: dict[int, set[int]] = defaultdict(set)
-    for province in deleted:
-        components[union.find(province)].add(province)
     assignments: dict[int, int] = {}
     valid_impassable = impassable & graph.keys() - deleted
     if not valid_impassable:
         raise UpdateError("No impassable province from default.map is present in provinces.png")
-    for component in components.values():
+    for component, _ in province_components(deleted, graph):
         candidates: Counter = Counter()
         for province in component:
             for neighbor in graph.get(province, ()):
                 if neighbor in valid_impassable:
                     candidates[neighbor] += boundaries[(province, neighbor)]
         if candidates:
-            receiver = candidates.most_common(1)[0][0]
+            receiver = min(candidates, key=lambda province: (-candidates[province], province))
         else:
             # Search the province graph, not raw pixel distance. This handles islands
             # while preferring a geographically local impassable province.
-            queue = deque(component)
+            queue = deque(sorted(component))
             seen = set(component)
             receiver = -1
             while queue and receiver < 0:
                 province = queue.popleft()
-                for neighbor in graph.get(province, ()):
+                for neighbor in sorted(graph.get(province, ())):
                     if neighbor in seen:
                         continue
                     if neighbor in valid_impassable:
@@ -774,9 +767,11 @@ def generate_province_map(
     graph, boundaries = collect_adjacency(codes, color_to_id)
     groups = parse_map_province_groups(game / "map_data" / "default.map")
     deleted_provinces = set(deleted_provinces)
-    deleted_provinces.update(deleted_history_file_provinces(game, deleted_titles))
+    history_provinces = deleted_history_file_provinces(game, deleted_titles)
+    for provinces in history_provinces.values():
+        deleted_provinces.update(provinces)
     forced_receivers = regional_receiver_assignments(
-        game, catalog, deleted_titles, present_ids, groups, graph,
+        history_provinces, catalog, deleted_titles, present_ids, groups, graph,
     )
     regional_special = forced_receivers.keys() - deleted_provinces
     deleted_provinces.update(forced_receivers)
@@ -817,6 +812,18 @@ def generate_province_map(
         raise UpdateError("Regional map fill receiver is selected for deletion")
     receivers.update(forced_receivers)
     changed = 0
+    receiver_ids = set(receivers.values())
+    if receiver_ids & (titled_provinces | physical_deleted):
+        raise UpdateError("Map receivers must be surviving untitled impassable provinces")
+    protected_lookup = np.zeros(1 << 24, dtype=bool)
+    for province in protected | receiver_ids | {0}:
+        if province in id_to_rgb:
+            r, g, b = id_to_rgb[province]
+            code = r << 16 | g << 8 | b
+            if province in receiver_ids and color_to_id.get(code) != province:
+                raise UpdateError(f"Ambiguous map receiver RGB: province {province}")
+            protected_lookup[code] = True
+    protected_pixels = protected_lookup[codes]
     lookup = np.arange(1 << 24, dtype=np.uint32)
     for province, receiver in receivers.items():
         source_rgb = id_to_rgb[province]
@@ -826,20 +833,16 @@ def generate_province_map(
         lookup[source_code] = target_code
     # One lookup per pixel is ~3,000 times faster than scanning this 42 MP image
     # once for every deleted province. Work in strips to cap peak memory.
+    result_codes = np.empty_like(codes)
     for top in range(0, codes.shape[0], 256):
         bottom = min(top + 256, codes.shape[0])
         original = codes[top:bottom]
         mapped = lookup[original]
         changed += int(np.count_nonzero(mapped != original))
-        rgb[top:bottom, :, 0] = (mapped >> 16).astype(np.uint8)
-        rgb[top:bottom, :, 1] = (mapped >> 8).astype(np.uint8)
-        rgb[top:bottom, :, 2] = mapped.astype(np.uint8)
-    result_codes = image_codes(rgb)
-    protected_codes = [r << 16 | g << 8 | b for province, (r, g, b)
-                       in id_to_rgb.items() if province in protected | {0}]
-    protected_pixels = np.isin(result_codes, protected_codes)
+        result_codes[top:bottom] = mapped
+    del lookup, protected_lookup
     enclave_colors: set[int] = set()
-    for receiver in sorted(set(province_receiver_overrides.values())):
+    for receiver in sorted(receiver_ids):
         target_rgb = id_to_rgb[receiver]
         r, g, b = target_rgb
         target_code = r << 16 | g << 8 | b
@@ -848,11 +851,18 @@ def generate_province_map(
         if count:
             enclave_colors.update(np.unique(result_codes[enclosed]).tolist())
             result_codes[enclosed] = target_code
-            rgb[enclosed] = target_rgb
             changed += count
             log(f"Filled {count:,} enclosed untitled pixels into impassable province {receiver}")
-        if np.any(wasteland_enclaves(result_codes, target_code, protected_pixels)):
-            raise UpdateError(f"Isolated colors remain inside impassable province {receiver}")
+    # Validate against ORIGINAL pixels, not a protection mask derived after paint.
+    # Convert only once, after both province- and pixel-level cleanup are complete.
+    for top in range(0, codes.shape[0], 256):
+        bottom = min(top + 256, codes.shape[0])
+        original, mapped = codes[top:bottom], result_codes[top:bottom]
+        if np.any((mapped != original) & protected_pixels[top:bottom]):
+            raise UpdateError("Map cleanup changed protected land, seas, or receiver pixels")
+        rgb[top:bottom, :, 0] = (mapped >> 16).astype(np.uint8)
+        rgb[top:bottom, :, 1] = (mapped >> 8).astype(np.uint8)
+        rgb[top:bottom, :, 2] = mapped.astype(np.uint8)
     result_palette = set(np.unique(result_codes).tolist())
     # Only remove history/adjacencies if every pixel of a shared province vanished.
     deleted_provinces.update(color_to_id[code] for code in enclave_colors - result_palette)
