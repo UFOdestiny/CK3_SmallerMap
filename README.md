@@ -93,26 +93,36 @@ original map. This includes mountains missing from `default.map`'s mountain
 lists. Components touching surviving baronies are retained; sea zones and
 impassable seas are excluded. This fills island interiors and coastal fragments
 without relying on hand-painted masks or colors from an older mod image.
-Untitled pockets adjoining the receiver itself are included too, so enclosed
-Siberian rivers, lakes, and mountain provinces use the surrounding wasteland
-color.
+Cleanup is anchored to deleted titles, not to existing wasteland colors.
+Native wasteland, rivers, lakes, or islands outside the deletion region are
+left unchanged, even if they use the same receiver RGB.
 
-Map cleanup uses the same pipeline across all generated fill regions:
+The complete workflow starts from `title_delete`. Its descendants determine
+the landed-title/history overrides and the provinces located through
+`definition.csv`. The tool cleans those map regions, updates
+religion/bookmarks/adjacencies, and validates everything before writing the mod.
+The final removed-province set is shared with province-history and adjacency
+generation. Receiver overrides are color preferences, not deletion commands;
+rules for titles absent from the deletion set are inactive.
+
+Map cleanup uses the same pipeline for these title-derived regions:
 
 1. Read deleted-title province history once, then build the original province
    adjacency graph (including the east/west world-map seam).
 2. Apply regional overrides and bounded absorption of untitled special terrain.
    Other deleted components use the nearest reachable impassable receiver;
    equal choices are resolved deterministically by province ID.
-3. Recolor whole provinces with a single lookup per pixel, then check **every
-   receiver actually used**, not just the Southeast Asia/Siberia overrides.
-   One connected-component labeling pass per receiver fills enclosed untitled
-   pixels, including disconnected fragments of a shared river/lake province.
-   Pixel connectivity also respects the world-map seam.
-4. Protect retained baronies, sea zones, existing receiver pixels, and complete
+3. Localize additional untitled terrain to pixel components adjoining the
+   deleted-title provinces. Disconnected shapes of the same province ID outside
+   this scope remain unchanged. Recolor the scoped pixels with a lookup table.
+4. Check the receivers used for this deletion. Enclosed untitled fragments can
+   be filled only if they adjoin newly removed pixels assigned to that receiver;
+   pre-existing receiver-colored land alone cannot authorize any cleanup.
+   Pixel connectivity respects the world-map seam.
+5. Protect retained baronies, sea zones, existing receiver pixels, and complete
    enclosed components containing any of them. Compare protected pixels against
    the original game map before writing. Convert back to RGB only once.
-5. Remove shared province history and adjacencies only when all pixels of that
+6. Remove shared province history and adjacencies only when all pixels of that
    province disappear; a partly filled lake retains its outside shapes and data.
 
 No old hand-painted map, province-name guesswork, or one-off island mask is used.
