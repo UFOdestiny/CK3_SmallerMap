@@ -34,7 +34,9 @@ Edit the settings near the top of
 - `province_receiver_overrides`: give each deleted region one impassable
   receiver, including its adjoining untitled land. The Southeast Asian islands
   and Malay Peninsula use province `11215`, RGB `(10, 13, 16)`, matching
-  Kalimantan. The receiver must exist in the installed game.
+  Kalimantan. Deleted northern regions use Siberian Wastes (`1464`), RGB
+  `(127, 177, 4)`. Both receivers are already impassable in the game's
+  `default.map`; merged land no longer retains its former province ID.
 - `replace_title`: exact text replacements for surviving landed titles whose
   capital would otherwise point to a deleted county. Nusantara's capital is
   moved from Tondo to Taiwan in the current configuration.
@@ -91,6 +93,13 @@ original map. This includes mountains missing from `default.map`'s mountain
 lists. Components touching surviving baronies are retained; sea zones and
 impassable seas are excluded. This fills island interiors and coastal fragments
 without relying on hand-painted masks or colors from an older mod image.
+Untitled pockets adjoining the receiver itself are included too, so enclosed
+Siberian rivers, lakes, and mountain provinces use the surrounding wasteland
+color. A pixel-level enclosure pass also fills disconnected river/lake fragments
+whose province ID is still used elsewhere. Entire enclosed components touching
+retained baronies or sea pixels are protected. Shared province history and
+adjacencies are removed only when all of that province's pixels disappear.
+The generated map is checked again for fillable enclaves before files are written.
 
 For surviving title history, `liege` and `de_jure_liege` references to deleted
 titles are explicitly set to `0`. This prevents a restored region from losing

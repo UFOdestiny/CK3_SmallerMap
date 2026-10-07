@@ -18,6 +18,7 @@ from typing import Iterable
 
 import numpy as np
 from PIL import Image
+from scipy import ndimage
 
 from ck3parser import (
     Block,
@@ -77,6 +78,11 @@ province_receiver_overrides = dict.fromkeys(
      "k_tanjungnagara", "k_sulawesi", "k_maluku"),
     11215,
 )
+province_receiver_overrides.update(dict.fromkeys(
+    ("e_siberia", "k_permia", "k_angara", "k_bjarmaland",
+     "k_buryatia", "k_khakassia"),
+    1464,  # Siberian Wastes, RGB (127, 177, 4); impassable in default.map.
+))
 
 replace_title = {
     "capital = c_PHI_tondo": "capital = c_hoanya",
@@ -554,6 +560,23 @@ def absorb_enclosed_special_provinces(
     return absorbed
 
 
+def province_components(candidates: set[int], graph: dict[int, set[int]]):
+    """Yield connected province components and their neighboring province IDs."""
+    unseen = set(candidates)
+    while unseen:
+        component, queue, boundary = set(), [unseen.pop()], set()
+        while queue:
+            province = queue.pop()
+            component.add(province)
+            for neighbor in graph.get(province, ()):
+                if neighbor in unseen:
+                    unseen.remove(neighbor)
+                    queue.append(neighbor)
+                else:
+                    boundary.add(neighbor)
+        yield component, boundary - component
+
+
 def regional_receiver_assignments(
     game: Path,
     catalog: TitleCatalog,
@@ -585,22 +608,12 @@ def regional_receiver_assignments(
         regions[receiver].update(deleted_history_file_provinces(game, descendants))
     assignments = {province: receiver for receiver, region in regions.items()
                    for province in region & present}
-    unseen = present - titled - water - targets - {0}
-    while unseen:
-        component, queue, boundary = set(), [unseen.pop()], set()
-        while queue:
-            province = queue.pop()
-            component.add(province)
-            for neighbor in graph.get(province, ()):
-                if neighbor in unseen:
-                    unseen.remove(neighbor)
-                    queue.append(neighbor)
-                else:
-                    boundary.add(neighbor)
-        boundary.difference_update(component)
+    candidates = present - titled - water - targets - {0}
+    for component, boundary in province_components(candidates, graph):
         if boundary & retained:
             continue
-        receivers = {receiver for receiver, region in regions.items() if boundary & region}
+        receivers = {receiver for receiver, region in regions.items()
+                     if boundary & (region | {receiver})}
         if len(receivers) > 1:
             raise UpdateError(f"Untitled land touches conflicting map receivers: {sorted(receivers)}")
         if receivers:
@@ -609,6 +622,23 @@ def regional_receiver_assignments(
     if assignments.keys() & water:
         raise UpdateError("Regional map fill would repaint sea provinces")
     return assignments
+
+
+def wasteland_enclaves(
+    codes: np.ndarray,
+    receiver_code: int,
+    protected_pixels: np.ndarray,
+) -> np.ndarray:
+    """Find enclosed pixel components containing neither retained land nor seas.
+
+    One river/lake province can have disconnected shapes; province-ID adjacency
+    alone cannot distinguish its enclosed pixels from its surviving branches.
+    """
+    mask = codes == receiver_code
+    holes = ndimage.binary_fill_holes(mask) & ~mask
+    labels, _ = ndimage.label(holes)
+    blocked = np.unique(labels[protected_pixels])
+    return holes & ~np.isin(labels, blocked)
 
 
 class UnionFind:
@@ -767,6 +797,13 @@ def generate_province_map(
     if missing_definitions:
         raise UpdateError("Deleted province IDs are undefined: " + ", ".join(map(str, missing_definitions)))
     physical_deleted = deleted_provinces & present_ids
+    protected = (
+        catalog.province_ids(catalog.entries.keys() - deleted_titles)
+        | groups["sea_zones"] | groups["impassable_seas"]
+    )
+    conflicts = physical_deleted & protected
+    if conflicts:
+        raise UpdateError(f"Map fill would remove surviving land or sea provinces: {sorted(conflicts)}")
     absent = deleted_provinces - physical_deleted
     if absent:
         log(f"WARNING: {len(absent)} deleted province IDs have no pixels in the base map")
@@ -798,7 +835,27 @@ def generate_province_map(
         rgb[top:bottom, :, 1] = (mapped >> 8).astype(np.uint8)
         rgb[top:bottom, :, 2] = mapped.astype(np.uint8)
     result_codes = image_codes(rgb)
+    protected_codes = [r << 16 | g << 8 | b for province, (r, g, b)
+                       in id_to_rgb.items() if province in protected | {0}]
+    protected_pixels = np.isin(result_codes, protected_codes)
+    enclave_colors: set[int] = set()
+    for receiver in sorted(set(province_receiver_overrides.values())):
+        target_rgb = id_to_rgb[receiver]
+        r, g, b = target_rgb
+        target_code = r << 16 | g << 8 | b
+        enclosed = wasteland_enclaves(result_codes, target_code, protected_pixels)
+        count = int(np.count_nonzero(enclosed))
+        if count:
+            enclave_colors.update(np.unique(result_codes[enclosed]).tolist())
+            result_codes[enclosed] = target_code
+            rgb[enclosed] = target_rgb
+            changed += count
+            log(f"Filled {count:,} enclosed untitled pixels into impassable province {receiver}")
+        if np.any(wasteland_enclaves(result_codes, target_code, protected_pixels)):
+            raise UpdateError(f"Isolated colors remain inside impassable province {receiver}")
     result_palette = set(np.unique(result_codes).tolist())
+    # Only remove history/adjacencies if every pixel of a shared province vanished.
+    deleted_provinces.update(color_to_id[code] for code in enclave_colors - result_palette)
     remaining = [province for province in physical_deleted if (
         (id_to_rgb[province][0] << 16 | id_to_rgb[province][1] << 8 | id_to_rgb[province][2]) in result_palette
     )]
