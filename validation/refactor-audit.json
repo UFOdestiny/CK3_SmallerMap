@@ -1,0 +1,22 @@
+{
+  "date": "2026-11-17",
+  "status": "passed",
+  "tests_passed": 14,
+  "full_check": "passed",
+  "generated_files": 135,
+  "changed_generated_files": 0,
+  "baseline_and_current_output_digest": "cbb962317577a16bc5c6d160b7322d23335be4b01ea4071df7f29f71dd4a393d",
+  "source_input_sha256": "bbce4ff160ab14a5676cc0a22d9c7a12c01b938e0510b56ef665d006b849e330",
+  "cli_lines_before": 1326,
+  "cli_lines_after": 29,
+  "circular_imports": false,
+  "unused_imports": false,
+  "configuration_fields": [
+    "delete_titles",
+    "province_receivers",
+    "capital_replacements",
+    "holy_site_replacements",
+    "faith_fallbacks"
+  ],
+  "runtime_verified": false
+}

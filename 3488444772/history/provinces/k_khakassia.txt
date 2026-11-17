@@ -1,0 +1,76 @@
+﻿# Many of the duchies, counties & baronies are named after geographical features and overall regions
+# The vast majority of cities are fairly modern, at the very least from Renaissance era
+
+#AKA Minusinsk Hollow
+#k_khakassia
+##d_khakass_hollow
+###c_abakan
+####b_abakan
+####b_ulugkol
+####b_sosno
+###c_julym
+####b_julym
+####b_yezagash
+####b_uchum
+###c_jerjul
+####b_jerjul
+####b_argyjek
+####b_sisim
+##d_blue_khakassia
+###c_kizir
+####b_kizir
+####b_tuba_TUV
+####b_shina
+####b_tiberkul
+###c_anja
+####b_anja_TUV
+####b_tofa_nuruud
+###c_kyzylkul
+####b_bolsho_kyzylkul
+####b_amyl
+####b_borus
+####b_kop_golyn
+##d_shoria (Based on the local Shors people)
+###c_kuzbas
+####b_kuznetsk
+####b_kuztom
+####b_kuzalatau
+###c_shor
+####b_kondoma_MON
+####b_mrassu
+####b_shor
+###c_uul_chors
+####b_abaza
+####b_khartomor_uul
+####b_granuul
+##d_kargassia (Duchy based on the language/ethnic group present in the area, known as Karagas)
+###c_burugu_aallar
+####b_tofalaria
+####b_miirchun
+####b_ikh_orgil
+###c_chagdy_aallar
+####b_kandat_uul
+####b_kazyr
+####b_kazas
+###c_songuu_aallar
+####b_ergaki
+####b_orgogdon_rok
+####b_baldyrgannyg
+##d_eastern_sayan
+###c_karauda
+####b_karauda
+
+#Sayan = Sayan mountains
+####b_iya_TUV
+####b_doloon_nuur
+###c_shityy
+####b_shityy
+####b_tsagaan_kropot
+####b_dibi_TUV
+###c_kropot
+####b_kropot
+####b_urik
+####b_setgel_uul
+###c_monkh_saridag
+####b_monkh_saridag
+####b_khurel_uul

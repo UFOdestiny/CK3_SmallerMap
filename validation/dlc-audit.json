@@ -1,0 +1,67 @@
+{
+  "checked_date": "2026-11-17",
+  "dlc": {
+    "name": "Silk and Silver",
+    "steam_app_id": "4232910",
+    "folder": "dlc/dlc031_ep5",
+    "files": {
+      "dlc031.dlc": {
+        "bytes": 234,
+        "sha256": "9e4aee4421ddcdb39ad0cb3f6addab018d3e41b7bbbff19429dd325917700580"
+      },
+      "gfx/interface/illustrations/loading_screens/ep5_loadscreens.txt": {
+        "bytes": 51,
+        "sha256": "8a916517602713951a10b55c68f1b96a2ce2f024857fc331fa4fd231463e805c"
+      },
+      "gfx/interface/illustrations/loading_screens/merchants.dds": {
+        "bytes": 4147328,
+        "sha256": "8691124fd279ce6a4343beded2efa68d9dadd02a6b949caa3e825e48c49c8ba1"
+      },
+      "music/in_game/ep5_music.txt": {
+        "bytes": 2636,
+        "sha256": "0fe9c5b1fdad93717dec9cacfcb92ff38db1584fdd11bcc7028ac4d10d11c10d"
+      },
+      "music/main_themes/gdp_music.txt": {
+        "bytes": 247,
+        "sha256": "13e1ca6407a42a008565261483439bdcdc5361fbacba060ef7d133d485b2c657"
+      },
+      "music/music_player_categories/ep5_music_categories.txt": {
+        "bytes": 360,
+        "sha256": "fd1a1e624950690d36698ce568ee513c79e149319f3c4ec8e08fb35e35c6c297"
+      },
+      "sound/banks/ep5Music.bank": {
+        "bytes": 23951488,
+        "sha256": "02372e03d1042c8a9d89ce119546b551285e3ea24504ed5e105c2f521800f73f"
+      },
+      "thumbnail.png": {
+        "bytes": 74307,
+        "sha256": "d026ec81d27169b0e117b822969ee5933331a4c73af5e85e4450812b36c4b84b"
+      }
+    }
+  },
+  "source": {
+    "branch": "release/1.21.0",
+    "steam_build_id": "26622941",
+    "input_file_count": 485,
+    "input_sha256": "bbce4ff160ab14a5676cc0a22d9c7a12c01b938e0510b56ef665d006b849e330",
+    "map_sha256": {
+      "map_data/adjacencies.csv": "eef3ab953834db54c0c8c4f2ddc77f421e05aa035898163cb4d4979d82f48553",
+      "map_data/climate.txt": "400a98491ac7209f99fd872e9c8021ccb8bb84cf615babbe62c53d4b461122e3",
+      "map_data/default.map": "fcd944af1d1a26d14fa655974030e4876adfa0ce790b0659dea3858c43100d49",
+      "map_data/definition.csv": "7bd7e5e4b6572830b2eb7dbb57cd9f7a7d368b8bcd65fda40465b418a1d0463d",
+      "map_data/island_region.txt": "5cffece660c16c7993a4fa81b2b6b02fbf27691510885d5340dd58765e9152e1",
+      "map_data/provinces.png": "2df2e92c4d84a63bad20ad5b16312f6f006af07204fb7825aa846299001d0f0e"
+    }
+  },
+  "source_matches_previous_rebuild": true,
+  "dlc_map_or_script_overrides": [],
+  "dlc_zip_archives": [],
+  "full_generation_check": {
+    "command": "python -u update_mod.py --check",
+    "status": "passed",
+    "generated_files_verified": 135,
+    "exact_map_pixels_verified": true
+  },
+  "runtime_verified": false,
+  "conclusion": "Installed DLC adds metadata, loading-screen and audio resources. All 485 generator inputs and all generated files still match the previous rebuild; no regeneration is required."
+}

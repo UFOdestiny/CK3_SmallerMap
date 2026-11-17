@@ -1,0 +1,513 @@
+"""Province-graph receivers and pixel-scoped, wrap-aware map reduction."""
+
+from __future__ import annotations
+
+from collections import Counter, defaultdict, deque
+import csv
+from dataclasses import dataclass
+from pathlib import Path
+import re
+from typing import Mapping
+import numpy as np
+from PIL import Image
+from scipy import ndimage
+
+from .common import UpdateError, log
+from .script import read_document
+from .titles import TitleCatalog
+
+
+@dataclass(frozen=True)
+class MapResult:
+    image: Image.Image
+    repainted_pixels: int
+    removed_provinces: set[int]
+    absorbed_special_provinces: int
+
+
+def read_definitions(path: Path) -> tuple[dict[int, tuple[int, int, int]], dict[int, int]]:
+    ids: dict[int, tuple[int, int, int]] = {}
+    color_to_id: dict[int, int] = {}
+    with path.open("r", encoding="utf-8-sig", newline="") as stream:
+        for row in csv.reader(stream, delimiter=";"):
+            if len(row) < 4 or not row[0].strip().isdigit():
+                continue
+            province = int(row[0])
+            rgb = tuple(int(item) for item in row[1:4])
+            if province in ids or any(channel < 0 or channel > 255 for channel in rgb):
+                raise UpdateError(f"Invalid or duplicate province definition: {province}")
+            code = rgb[0] << 16 | rgb[1] << 8 | rgb[2]
+            ids[province] = rgb
+            # Vanilla contains duplicate black placeholders (IDs 0 and 12946).
+            # The first definition owns ambiguous pixels; such later IDs cannot safely
+            # be used as paint receivers and therefore stay out of color_to_id.
+            color_to_id.setdefault(code, province)
+    return ids, color_to_id
+
+
+def parse_map_province_groups(default_map: Path) -> dict[str, set[int]]:
+    source = default_map.read_text(encoding="utf-8-sig")
+    source = re.sub(r"#.*", "", source)
+    result: dict[str, set[int]] = defaultdict(set)
+    pattern = re.compile(
+        r"(sea_zones|impassable_seas|river_provinces|lakes|impassable_mountains)"
+        r"\s*=\s*(LIST|RANGE)\s*\{([^}]*)\}",
+        re.I,
+    )
+    for name, kind, body in pattern.findall(source):
+        numbers = [int(item) for item in re.findall(r"\d+", body)]
+        if kind.upper() == "RANGE":
+            if len(numbers) != 2 or numbers[0] > numbers[1]:
+                raise UpdateError(f"Invalid {name} RANGE in {default_map}")
+            values = range(numbers[0], numbers[1] + 1)
+        else:
+            values = numbers
+        result[name.lower()].update(values)
+    if not result["impassable_mountains"]:
+        raise UpdateError(f"No impassable_mountains entries found in {default_map}")
+    if not result["sea_zones"]:
+        raise UpdateError(f"No sea_zones entries found in {default_map}")
+    return result
+
+
+def deleted_history_file_provinces(
+    game: Path,
+    deleted_titles: set[str],
+) -> dict[str, set[int]]:
+    """Include holding-none/road provinces stored in deleted kingdom history files."""
+    result: dict[str, set[int]] = {}
+    base = game / "history" / "provinces"
+    if not base.is_dir():
+        return result
+    for path in sorted(base.glob("*.txt")):
+        if path.stem not in deleted_titles:
+            continue
+        document = read_document(path)
+        result[path.stem] = {
+            int(block.key)
+            for block in document.roots
+            if block.key and block.key.isdigit()
+        }
+    return result
+
+
+def absorb_enclosed_special_provinces(
+    deleted: set[int],
+    surviving_titled: set[int],
+    present: set[int],
+    groups: dict[str, set[int]],
+    graph: dict[int, set[int]],
+    boundaries: Counter,
+) -> set[int]:
+    """Remove rivers/lakes/wastelands stranded inside deleted land.
+
+    These provinces have no landed title, so a title-only map rewrite leaves colored
+    slivers and islands. Only directly enclosed special provinces are absorbed; sea
+    zones and anything touching a surviving titled province remain unchanged.
+    """
+    candidates = (
+        groups["river_provinces"]
+        | groups["lakes"]
+        | groups["impassable_mountains"]
+    ) & present - deleted
+    absorbed: set[int] = set()
+    # A lake can sit behind an impassable province which itself sits behind deleted
+    # baronies. A few bounded passes close those one- or two-province holes without
+    # allowing deletion to flood indefinitely through a long mountain chain.
+    for _ in range(3):
+        frontier: set[int] = set()
+        deleted_now = deleted | absorbed
+        for province in candidates - absorbed:
+            neighbors = graph.get(province, set())
+            if not neighbors or neighbors & surviving_titled:
+                continue
+            total_boundary = sum(boundaries[(province, neighbor)] for neighbor in neighbors)
+            deleted_boundary = sum(
+                boundaries[(province, neighbor)]
+                for neighbor in neighbors
+                if neighbor in deleted_now
+            )
+            if total_boundary and deleted_boundary / total_boundary >= 0.5:
+                frontier.add(province)
+        if not frontier:
+            break
+        absorbed.update(frontier)
+    return absorbed
+
+
+def province_components(candidates: set[int], graph: dict[int, set[int]]):
+    """Yield connected province components and their neighboring province IDs."""
+    unseen = set(candidates)
+    while unseen:
+        component, queue, boundary = set(), [unseen.pop()], set()
+        while queue:
+            province = queue.pop()
+            component.add(province)
+            for neighbor in graph.get(province, ()):
+                if neighbor in unseen:
+                    unseen.remove(neighbor)
+                    queue.append(neighbor)
+                else:
+                    boundary.add(neighbor)
+        yield component, boundary - component
+
+
+def regional_receiver_assignments(
+    history_provinces: dict[str, set[int]],
+    catalog: TitleCatalog,
+    deleted_titles: set[str],
+    present: set[int],
+    groups: dict[str, set[int]],
+    graph: dict[int, set[int]],
+    province_receivers: Mapping[str, int],
+) -> dict[int, int]:
+    """Include untitled land components adjoining a configured deleted region.
+
+    Definition-only mountains are absent from both landed titles and some
+    default.map mountain lists. Exclude seas explicitly and reject components
+    touching retained baronies, instead of relying on coastline boundary ratios.
+    """
+    titled = catalog.province_ids(catalog.entries)
+    retained = catalog.province_ids(catalog.entries.keys() - deleted_titles)
+    water = groups["sea_zones"] | groups["impassable_seas"]
+    targets = {receiver for title, receiver in province_receivers.items()
+               if title in deleted_titles}
+    regions: dict[int, set[int]] = defaultdict(set)
+    for title, receiver in province_receivers.items():
+        if title not in deleted_titles:
+            continue  # A color rule never selects a title for deletion.
+        if receiver not in groups["impassable_mountains"] or receiver not in present:
+            raise UpdateError(f"Map receiver override is not a present impassable province: {receiver}")
+        if receiver in titled:
+            raise UpdateError(f"Map receiver override has a landed title: {receiver}")
+        descendants = catalog.descendants({title})
+        regions[receiver].update(catalog.province_ids(descendants))
+        for name in descendants & history_provinces.keys():
+            regions[receiver].update(history_provinces[name])
+    assignments = {province: receiver for receiver, region in regions.items()
+                   for province in region & present}
+    candidates = present - titled - water - targets - {0}
+    for component, boundary in province_components(candidates, graph):
+        if boundary & retained:
+            continue
+        receivers = {receiver for receiver, region in regions.items()
+                     if boundary & region}
+        if len(receivers) > 1:
+            raise UpdateError(f"Untitled land touches conflicting map receivers: {sorted(receivers)}")
+        if receivers:
+            receiver = receivers.pop()
+            assignments.update(dict.fromkeys(component, receiver))
+    if assignments.keys() & water:
+        raise UpdateError("Regional map fill would repaint sea provinces")
+    return assignments
+
+
+def touching_components(labels: np.ndarray, pixels: np.ndarray, count: int) -> np.ndarray:
+    """Mark pixel components sharing an edge with the supplied region."""
+    touched = np.zeros(count + 1, dtype=bool)
+    for neighbors, region in (
+        (labels[1:, :], pixels[:-1, :]), (labels[:-1, :], pixels[1:, :]),
+        (labels[:, 1:], pixels[:, :-1]), (labels[:, :-1], pixels[:, 1:]),
+        (labels[:, 0], pixels[:, -1]), (labels[:, -1], pixels[:, 0]),
+    ):
+        touched[neighbors[region]] = True
+    touched[0] = False
+    return touched
+
+
+def propagate_seam_flags(labels: np.ndarray, *flags: np.ndarray) -> None:
+    """Share component flags across CK3's east/west map seam."""
+    seam: dict[int, set[int]] = defaultdict(set)
+    for left, right in np.unique(np.column_stack((labels[:, 0], labels[:, -1])), axis=0):
+        if left and right and left != right:
+            seam[int(left)].add(int(right))
+            seam[int(right)].add(int(left))
+    for component, _ in province_components(set(seam), seam):
+        indices = list(component)
+        for flag in flags:
+            if np.any(flag[indices]):
+                flag[indices] = True
+
+
+def deletion_pixel_scope(
+    codes: np.ndarray,
+    id_to_rgb: dict[int, tuple[int, int, int]],
+    core: set[int],
+    special: set[int],
+) -> np.ndarray:
+    """Localize special terrain to pixel components adjoining deleted titles.
+
+    An untitled province ID may have disconnected shapes outside the region.
+    Those shapes must not be removed merely because its ID was selected nearby.
+    """
+    lookup = np.zeros(1 << 24, dtype=bool)
+    for province in core:
+        r, g, b = id_to_rgb[province]
+        lookup[r << 16 | g << 8 | b] = True
+    scope = lookup[codes]
+    if special:
+        lookup[:] = False
+        for province in special:
+            r, g, b = id_to_rgb[province]
+            lookup[r << 16 | g << 8 | b] = True
+        labels, count = ndimage.label(lookup[codes])
+        touched = touching_components(labels, scope, count)
+        propagate_seam_flags(labels, touched)
+        scope |= touched[labels]
+    return scope
+
+
+def wasteland_enclaves(
+    codes: np.ndarray,
+    receiver_code: int,
+    protected_pixels: np.ndarray,
+    deleted_region: np.ndarray,
+) -> np.ndarray:
+    """Find unprotected enclaves adjoining this run's actual deletion region.
+
+    One river/lake province can have disconnected shapes; province-ID adjacency
+    alone cannot distinguish its enclosed pixels from its surviving branches.
+    """
+    # Label the complement once instead of flood-filling then labeling it again.
+    labels, count = ndimage.label(codes != receiver_code)
+    blocked = np.zeros(count + 1, dtype=bool)
+    blocked[0] = True  # The receiver itself is never a repaint candidate.
+    blocked[labels[protected_pixels]] = True
+    blocked[labels[0, :]] = True
+    blocked[labels[-1, :]] = True
+    touched = touching_components(labels, deleted_region, count)
+    propagate_seam_flags(labels, blocked, touched)
+    return (~blocked & touched)[labels]
+
+
+def image_codes(rgb: np.ndarray) -> np.ndarray:
+    wide = rgb.astype(np.uint32)
+    return (wide[:, :, 0] << 16) | (wide[:, :, 1] << 8) | wide[:, :, 2]
+
+
+def collect_adjacency(codes: np.ndarray, color_to_id: dict[int, int]) -> tuple[dict[int, set[int]], Counter]:
+    """Build province adjacency and boundary lengths without allocating huge pair arrays."""
+    graph: dict[int, set[int]] = defaultdict(set)
+    boundaries: Counter = Counter()
+
+    def add(left: np.ndarray, right: np.ndarray) -> None:
+        mask = left != right
+        if not np.any(mask):
+            return
+        a, b = left[mask].astype(np.uint64), right[mask].astype(np.uint64)
+        low, high = np.minimum(a, b), np.maximum(a, b)
+        packed = (low << 24) | high
+        values, counts = np.unique(packed, return_counts=True)
+        for packed_value, count in zip(values.tolist(), counts.tolist()):
+            left_code = int(packed_value >> 24)
+            right_code = int(packed_value & 0xFFFFFF)
+            left_id, right_id = color_to_id.get(left_code), color_to_id.get(right_code)
+            if left_id is None or right_id is None:
+                continue
+            graph[left_id].add(right_id)
+            graph[right_id].add(left_id)
+            boundaries[(left_id, right_id)] += count
+            boundaries[(right_id, left_id)] += count
+
+    chunk = 256
+    for top in range(0, codes.shape[0], chunk):
+        part = codes[top:min(top + chunk, codes.shape[0])]
+        add(part[:, :-1], part[:, 1:])
+        if part.shape[0] > 1:
+            add(part[:-1, :], part[1:, :])
+        if top:
+            add(codes[top - 1, :], codes[top, :])
+        add(part[:, -1], part[:, 0])  # CK3's world map wraps east/west.
+    return graph, boundaries
+
+
+def choose_receivers(
+    deleted: set[int],
+    impassable: set[int],
+    graph: dict[int, set[int]],
+    boundaries: Counter,
+) -> dict[int, int]:
+    assignments: dict[int, int] = {}
+    valid_impassable = impassable & graph.keys() - deleted
+    if not valid_impassable:
+        raise UpdateError("No impassable province from default.map is present in provinces.png")
+    for component, _ in province_components(deleted, graph):
+        candidates: Counter = Counter()
+        for province in component:
+            for neighbor in graph.get(province, ()):
+                if neighbor in valid_impassable:
+                    candidates[neighbor] += boundaries[(province, neighbor)]
+        if candidates:
+            receiver = min(candidates, key=lambda province: (-candidates[province], province))
+        else:
+            # Search the province graph, not raw pixel distance. This handles islands
+            # while preferring a geographically local impassable province.
+            queue = deque(sorted(component))
+            seen = set(component)
+            receiver = -1
+            while queue and receiver < 0:
+                province = queue.popleft()
+                for neighbor in sorted(graph.get(province, ())):
+                    if neighbor in seen:
+                        continue
+                    if neighbor in valid_impassable:
+                        receiver = neighbor
+                        break
+                    seen.add(neighbor)
+                    queue.append(neighbor)
+            if receiver < 0:
+                raise UpdateError(f"No impassable receiver reachable for deleted component {sorted(component)[:8]}")
+        for province in component:
+            assignments[province] = receiver
+    return assignments
+
+
+def generate_province_map(
+    game: Path,
+    deleted_provinces: set[int],
+    deleted_titles: set[str],
+    catalog: TitleCatalog,
+    province_receivers: Mapping[str, int],
+) -> MapResult:
+    definition_path = game / "map_data" / "definition.csv"
+    provinces_path = game / "map_data" / "provinces.png"
+    id_to_rgb, color_to_id = read_definitions(definition_path)
+    with Image.open(provinces_path) as image:
+        if image.mode != "RGB":
+            raise UpdateError(f"Game provinces.png must be RGB, got {image.mode}")
+        rgb = np.asarray(image).copy()
+    codes = image_codes(rgb)
+    present_codes = set(np.unique(codes).tolist())
+    unknown = present_codes - color_to_id.keys()
+    if unknown:
+        raise UpdateError(f"provinces.png contains {len(unknown)} RGB color(s) absent from definition.csv")
+    present_ids = {color_to_id[code] for code in present_codes}
+    graph, boundaries = collect_adjacency(codes, color_to_id)
+    groups = parse_map_province_groups(game / "map_data" / "default.map")
+    deleted_provinces = set(deleted_provinces)
+    history_provinces = deleted_history_file_provinces(game, deleted_titles)
+    for provinces in history_provinces.values():
+        deleted_provinces.update(provinces)
+    title_provinces = set(deleted_provinces)
+    forced_receivers = regional_receiver_assignments(
+        history_provinces, catalog, deleted_titles, present_ids, groups, graph, province_receivers,
+    )
+    deleted_provinces.update(forced_receivers)
+    titled_provinces = {
+        entry.province for entry in catalog.entries.values() if entry.province is not None
+    }
+    surviving_titled = titled_provinces - deleted_provinces
+    absorbed = absorb_enclosed_special_provinces(
+        deleted_provinces,
+        surviving_titled,
+        present_ids - {receiver for title, receiver in province_receivers.items()
+                       if title in deleted_titles},
+        groups,
+        graph,
+        boundaries,
+    )
+    deleted_provinces.update(absorbed)
+    missing_definitions = sorted(deleted_provinces - id_to_rgb.keys())
+    if missing_definitions:
+        raise UpdateError("Deleted province IDs are undefined: " + ", ".join(map(str, missing_definitions)))
+    physical_deleted = deleted_provinces & present_ids
+    scope = deletion_pixel_scope(
+        codes, id_to_rgb, title_provinces, physical_deleted - title_provinces,
+    )
+    protected = (
+        catalog.province_ids(catalog.entries.keys() - deleted_titles)
+        | groups["sea_zones"] | groups["impassable_seas"]
+    )
+    conflicts = physical_deleted & protected
+    if conflicts:
+        raise UpdateError(f"Map fill would remove surviving land or sea provinces: {sorted(conflicts)}")
+    absent = deleted_provinces - physical_deleted
+    if absent:
+        log(f"WARNING: {len(absent)} deleted province IDs have no pixels in the base map")
+    receivers = choose_receivers(
+        physical_deleted,
+        groups["impassable_mountains"],
+        graph,
+        boundaries,
+    )
+    if set(forced_receivers.values()) & physical_deleted:
+        raise UpdateError("Regional map fill receiver is selected for deletion")
+    receivers.update(forced_receivers)
+    changed = 0
+    receiver_ids = set(receivers.values())
+    if receiver_ids & (titled_provinces | physical_deleted):
+        raise UpdateError("Map receivers must be surviving untitled impassable provinces")
+    protected_lookup = np.zeros(1 << 24, dtype=bool)
+    for province in protected | receiver_ids | {0}:
+        if province in id_to_rgb:
+            r, g, b = id_to_rgb[province]
+            code = r << 16 | g << 8 | b
+            if province in receiver_ids and color_to_id.get(code) != province:
+                raise UpdateError(f"Ambiguous map receiver RGB: province {province}")
+            protected_lookup[code] = True
+    protected_pixels = protected_lookup[codes]
+    lookup = np.arange(1 << 24, dtype=np.uint32)
+    for province, receiver in receivers.items():
+        source_rgb = id_to_rgb[province]
+        target_rgb = id_to_rgb[receiver]
+        source_code = source_rgb[0] << 16 | source_rgb[1] << 8 | source_rgb[2]
+        target_code = target_rgb[0] << 16 | target_rgb[1] << 8 | target_rgb[2]
+        lookup[source_code] = target_code
+    # One lookup per pixel is ~3,000 times faster than scanning this 42 MP image
+    # once for every deleted province. Work in strips to cap peak memory.
+    result_codes = np.empty_like(codes)
+    for top in range(0, codes.shape[0], 256):
+        bottom = min(top + 256, codes.shape[0])
+        original = codes[top:bottom]
+        mapped = lookup[original]
+        mapped[~scope[top:bottom]] = original[~scope[top:bottom]]
+        changed += int(np.count_nonzero(mapped != original))
+        result_codes[top:bottom] = mapped
+    del lookup, protected_lookup
+    # Only newly removed land establishes cleanup scope; native wasteland does not.
+    deleted_region = result_codes != codes
+    enclave_colors: set[int] = set()
+    for receiver in sorted(receiver_ids):
+        target_rgb = id_to_rgb[receiver]
+        r, g, b = target_rgb
+        target_code = r << 16 | g << 8 | b
+        enclosed = wasteland_enclaves(
+            result_codes, target_code, protected_pixels, deleted_region & (result_codes == target_code),
+        )
+        count = int(np.count_nonzero(enclosed))
+        if count:
+            enclave_colors.update(np.unique(result_codes[enclosed]).tolist())
+            result_codes[enclosed] = target_code
+            scope |= enclosed
+            changed += count
+            log(f"Filled {count:,} enclosed untitled pixels into impassable province {receiver}")
+    # Validate against ORIGINAL pixels, not a protection mask derived after paint.
+    # Convert only once, after both province- and pixel-level cleanup are complete.
+    for top in range(0, codes.shape[0], 256):
+        bottom = min(top + 256, codes.shape[0])
+        original, mapped = codes[top:bottom], result_codes[top:bottom]
+        if np.any((mapped != original) & protected_pixels[top:bottom]):
+            raise UpdateError("Map cleanup changed protected land, seas, or receiver pixels")
+        if np.any((mapped != original) & ~scope[top:bottom]):
+            raise UpdateError("Map cleanup changed pixels outside the title deletion scope")
+        rgb[top:bottom, :, 0] = (mapped >> 16).astype(np.uint8)
+        rgb[top:bottom, :, 1] = (mapped >> 8).astype(np.uint8)
+        rgb[top:bottom, :, 2] = mapped.astype(np.uint8)
+    result_palette = set(np.unique(result_codes).tolist())
+    # Only remove history/adjacencies if every pixel of a shared province vanished.
+    special_colors = {r << 16 | g << 8 | b for province in physical_deleted - title_provinces
+                      for r, g, b in [id_to_rgb[province]]}
+    deleted_provinces = title_provinces | {
+        color_to_id[code] for code in (enclave_colors | special_colors) - result_palette
+    }
+    remaining = [province for province in title_provinces & present_ids if (
+        (id_to_rgb[province][0] << 16 | id_to_rgb[province][1] << 8 | id_to_rgb[province][2]) in result_palette
+    )]
+    if remaining:
+        raise UpdateError("Deleted province colors remain after painting: " + ", ".join(map(str, remaining[:20])))
+    return MapResult(
+        Image.fromarray(rgb),
+        changed,
+        deleted_provinces,
+        len(deleted_provinces - title_provinces),
+    )

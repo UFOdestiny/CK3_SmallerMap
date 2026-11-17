@@ -1,0 +1,40 @@
+﻿
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#Additional Telugu dynasty in 1066:
+
+	#Malyalas of Sankisapura (Dornakal) and later Vardhamanapura (Mahabubnagar)
+	#1040.1.1 = {
+	#	holder = malyala_1 #Danna
+	#	liege = d_warangal
+	#}
+	#1076.1.1 = {
+	#	holder = malyala_2 #Danna II
+	#}
+	#1110.1.1 = {
+	#	holder = malyala_3 #Bachavarudhini
+	#}
+	#1120.1.1 = {
+	#	holder = malyala_4 #Sabba Senani
+	#}
+	#1165.1.1 = {
+	#	holder = malyala_5 #Kata Senani
+	#}
+	#1196.1.1 = {
+	#	holder = malyala_6 #Potha Senani
+	#}
+	#1201.1.1 = {
+	#	holder = malyala_7 #Chaunda Senani
+	#}

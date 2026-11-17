@@ -1,0 +1,77 @@
+﻿# Many of the duchies, counties & baronies are named after geographical features and overall regions
+# The vast majority of cities are fairly modern, at the very least from Renaissance era
+
+# Northern & western sides of the Ba�kal are set as shamanic instead of tengri
+# In reality, it's difficult to say because of the lack of records, and because there very likely was a lot of shamano-tengric syncretism
+# Olkhon and very northern lands are set as shamanic, while the Uda Valley and close-by Dauria are set as Tengri
+
+#k_buryatia
+##d_uda_valley
+###c_ulan_ude
+####b_ulan_ude
+####b_altaichei
+####b_khudan_BUR
+####b_saranka
+###c_chikoy
+####b_chikoy
+####b_khilok
+####b_oungo
+##d_dauria
+###c_bargajan
+####b_bargajan
+
+#Dauria is an alternative name for Transba�kal
+####b_khilem_khamar
+####b_frolikha
+###c_muya
+####b_muya
+####b_jergin
+####b_vitimkan
+###c_kotokel
+####b_kotokel
+####b_kabans
+####b_itantsa
+###c_yera
+####b_yera
+####b_shilmuustoi
+####b_zuunbaykal
+##d_bargujin_tukum (Bargujin Tukum means "End of the world", the northern "edge" of the world according to local people at the time)
+###c_kotera
+####b_kotera
+####b_gants_khondii
+####b_mamakhondii
+####b_shugel_ondor
+###c_vitim
+####b_vitim
+####b_vitimkhad
+####b_karamuya
+###c_karabaigal
+####b_chuulunuruu
+####b_chonoshud
+####b_karaoi
+###c_chuya
+####b_chuya
+####b_alsholoi
+##d_baigaluuls
+###c_baigaluuls
+####b_kirenga
+####b_cherskogo
+####b_baigalan_chaya
+###c_uulynkhol
+####b_nogoon_naluu
+####b_daoroouul
+####b_khilgazar
+####b_khuldursgal
+##d_tsagaanbaigal (Fictional name, can be translated to "White Baikal" to mean "Western Baikal")
+###c_olkhon
+####b_olkhon
+####b_bugulde
+####b_manzurka
+###c_irkutsk
+####b_irkutsk
+####b_osa_MON
+####b_KUDA_MON
+###c_ryty
+####b_ryty
+####b_berikul
+####b_chikan

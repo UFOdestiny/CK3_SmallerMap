@@ -1,0 +1,4 @@
+﻿#k_kong
+##d_worodugu
+###c_worodugu
+####b_worodugu
